@@ -1,0 +1,62 @@
+import type { InputAction, KeyBindings } from './types';
+
+/** Default physical bindings. `Mouse0/1/2` = left/middle-not; see below. */
+export const DEFAULT_BINDINGS: KeyBindings = {
+  move_forward: ['KeyW', 'ArrowUp'],
+  move_back: ['KeyS', 'ArrowDown'],
+  move_left: ['KeyA', 'ArrowLeft'],
+  move_right: ['KeyD', 'ArrowRight'],
+  jump: ['Space'],
+  sneak: ['ShiftLeft'],
+  sprint: ['ControlLeft'],
+  attack: ['Mouse0'],
+  use: ['Mouse2'],
+  pick_block: ['Mouse1'],
+  drop_item: ['KeyQ'],
+  open_inventory: ['KeyE'],
+  toggle_perspective: ['F5'],
+  toggle_debug: ['F3'],
+  chat_or_command: ['KeyT', 'Slash'],
+  pause: ['Escape'],
+  hotbar_1: ['Digit1'],
+  hotbar_2: ['Digit2'],
+  hotbar_3: ['Digit3'],
+  hotbar_4: ['Digit4'],
+  hotbar_5: ['Digit5'],
+  hotbar_6: ['Digit6'],
+  hotbar_7: ['Digit7'],
+  hotbar_8: ['Digit8'],
+  hotbar_9: ['Digit9'],
+};
+
+export const ALL_ACTIONS = Object.keys(DEFAULT_BINDINGS) as InputAction[];
+
+export const ACTION_LABELS: Record<InputAction, string> = {
+  move_forward: 'Walk Forward',
+  move_back: 'Walk Backward',
+  move_left: 'Strafe Left',
+  move_right: 'Strafe Right',
+  jump: 'Jump',
+  sneak: 'Sneak',
+  sprint: 'Sprint',
+  attack: 'Attack / Mine',
+  use: 'Use / Place',
+  pick_block: 'Pick Block',
+  drop_item: 'Drop Item',
+  open_inventory: 'Open Inventory',
+  toggle_perspective: 'Toggle Perspective',
+  toggle_debug: 'Toggle Debug Info',
+  chat_or_command: 'Chat / Command',
+  pause: 'Pause',
+  hotbar_1: 'Hotbar Slot 1',
+  hotbar_2: 'Hotbar Slot 2',
+  hotbar_3: 'Hotbar Slot 3',
+  hotbar_4: 'Hotbar Slot 4',
+  hotbar_5: 'Hotbar Slot 5',
+  hotbar_6: 'Hotbar Slot 6',
+  hotbar_7: 'Hotbar Slot 7',
+  hotbar_8: 'Hotbar Slot 8',
+  hotbar_9: 'Hotbar Slot 9',
+};
+
+export const BINDINGS_STORAGE_KEY = 'voxelia.keybindings.v1';

@@ -1,0 +1,6 @@
+dist
+coverage
+node_modules
+public/textures
+pnpm-lock.yaml
+package-lock.json
