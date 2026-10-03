@@ -6,6 +6,8 @@ export function Hud({ snapshot }: { snapshot: GameSnapshot }): JSX.Element | nul
   if (!hud) return null;
   const survival = hud.gameMode === GameMode.Survival;
 
+  const weapon = hud.weapon;
+
   return (
     <div className="hud">
       <div className="crosshair" />
@@ -35,6 +37,15 @@ export function Hud({ snapshot }: { snapshot: GameSnapshot }): JSX.Element | nul
           </div>
         ))}
       </div>
+
+      {weapon && (
+        <div className="hud-ammo">
+          <span className="hud-ammo-name">{weapon.name}</span>
+          <span className={weapon.reloading ? 'hud-ammo-count reloading' : 'hud-ammo-count'}>
+            {weapon.reloading ? 'RELOADING' : `${weapon.ammo} / ${weapon.magazine}`}
+          </span>
+        </div>
+      )}
 
       {snapshot.debug && <div className="hud-coords">{snapshot.debug.x} / {snapshot.debug.y} / {snapshot.debug.z}</div>}
     </div>

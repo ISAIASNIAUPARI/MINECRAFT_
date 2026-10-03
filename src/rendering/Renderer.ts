@@ -158,12 +158,24 @@ export class Renderer implements IRenderer {
     return this.scene;
   }
 
+  /**
+   * Drawn after the world, with the depth buffer cleared. This is how the
+   * first-person weapon avoids clipping into walls; nothing else should use it.
+   */
+  overlay: ((renderer: THREE.WebGLRenderer) => void) | null = null;
+
+  /** The underlying WebGL renderer, for the overlay pass. */
+  get gl(): THREE.WebGLRenderer {
+    return this.renderer;
+  }
+
   render(_alpha: number): void {
     const now = performance.now();
     this._stats.frameMs = now - this.lastFrameTime;
     this.lastFrameTime = now;
 
     this.renderer.render(this.scene, this.camera);
+    this.overlay?.(this.renderer);
 
     const info = this.renderer.info;
     this._stats.drawCalls = info.render.calls;

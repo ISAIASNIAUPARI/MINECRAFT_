@@ -325,3 +325,32 @@ progress {
   width: 320px;
   height: 14px;
 }
+
+/* --- weapon ammo readout ------------------------------------------------ */
+.hud-ammo {
+  position: absolute;
+  right: 22px;
+  bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+.hud-ammo-name {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.hud-ammo-count {
+  font-size: 26px;
+  font-weight: 700;
+  color: #f2f4f8;
+}
+.hud-ammo-count.reloading {
+  font-size: 15px;
+  color: #ffb648;
+}

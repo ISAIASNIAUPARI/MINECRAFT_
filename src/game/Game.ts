@@ -13,6 +13,7 @@ import { PlayerController } from '../player/PlayerController';
 import { PlayerInventory } from '../inventory/PlayerInventory';
 import { MemoryStorage } from '../storage/MemoryStorage';
 import { EntityManager, EntityRenderer, type BrainSenses, type IEntity } from '../entities';
+import { CORE_WEAPONS, ViewmodelRenderer, WeaponSystem } from '../weapons';
 import { raycastVoxel } from '../physics/raycast';
 import type { VoxelView } from '../physics/types';
 import { normalizeSeed } from '../core/rng';
@@ -28,6 +29,17 @@ const AUTOSAVE_INTERVAL = 30;
 const SKELETON_RENDER_DISTANCE = 5;
 /** Fixed time of day until the day/night cycle lands (Phase 2). 0 = midnight. */
 const TIME_OF_DAY = 0.32;
+/** Matches the player controller's own clamp, so recoil cannot flip the view. */
+const MAX_CAMERA_PITCH = Math.PI / 2 - 0.01;
+
+const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
+/** Wrap a yaw difference into [-pi, pi] so crossing north is not a huge swing. */
+function shortestAngle(d: number): number {
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
 
 /**
  * The orchestrator. Owns the fixed-timestep loop and wires the subsystems
@@ -51,6 +63,14 @@ export class Game {
   private canSee: BrainSenses['canSee'] | null = null;
   private elapsed = 0;
   private spawnCursor = 0;
+  private weapons: WeaponSystem | null = null;
+  private viewmodel: ViewmodelRenderer | null = null;
+  /** Mouse delta this tick, handed to the viewmodel so it lags behind the look. */
+  private turnX = 0;
+  private turnY = 0;
+  private walkedDistance = 0;
+  private lastYaw = 0;
+  private lastPitch = 0;
   private player: PlayerController | null = null;
   private inventory: PlayerInventory | null = null;
   private storage: MemoryStorage | null = null;
@@ -176,6 +196,17 @@ export class Game {
       });
       this.entityRenderer = new EntityRenderer(this.renderer.threeScene, this.atlas);
 
+      this.weapons = new WeaponSystem({
+        weapons: CORE_WEAPONS,
+        voxels,
+        entities: this.entities,
+        seed,
+      });
+      this.viewmodel = new ViewmodelRenderer();
+      this.weapons.equip(CORE_WEAPONS[0].name);
+      this.viewmodel.setWeapon(CORE_WEAPONS[0]);
+      this.renderer.overlay = (gl) => this.viewmodel?.render(gl);
+
       this.input.attach(this.canvas);
       this.input.load();
       this.input.setEnabled(true);
@@ -224,10 +255,42 @@ export class Game {
       }
     }
 
+    const beforeX = this.player.state.position.x;
+    const beforeZ = this.player.state.position.z;
     this.player.tick(dt);
+    this.walkedDistance += Math.hypot(
+      this.player.state.position.x - beforeX,
+      this.player.state.position.z - beforeZ,
+    );
     this.world.tick(dt);
     this.worldTimeTicks++;
     this.elapsed += dt;
+
+    if (this.weapons && this.player) {
+      const cam = this.player.getCameraState();
+      const dir = {
+        x: -Math.sin(cam.yaw) * Math.cos(cam.pitch),
+        y: Math.sin(cam.pitch),
+        z: -Math.cos(cam.yaw) * Math.cos(cam.pitch),
+      };
+      const s = this.player.state;
+      this.weapons.tick(
+        {
+          firing: this.input.isDown('attack'),
+          aiming: this.input.isDown('use'),
+          reloadPressed: this.input.consumePressed('reload'),
+          origin: { x: cam.x, y: cam.y, z: cam.z },
+          direction: dir,
+          speed: Math.hypot(s.velocity.x, s.velocity.z),
+          distance: this.walkedDistance,
+          airborne: !s.onGround,
+          turnX: this.turnX,
+          turnY: this.turnY,
+        },
+        dt,
+      );
+      if (this.weapons.ejectedThisTick) this.viewmodel?.ejectCasing();
+    }
 
     if (this.entities && this.voxels && this.canSee) {
       const p = this.player.state;
@@ -261,7 +324,22 @@ export class Game {
   private render(alpha: number): void {
     if (!this.renderer || !this.player) return;
     this.player.updateLook(alpha);
-    this.renderer.setCamera(this.player.getCameraState());
+
+    // Recoil rides on top of the player's aim rather than being written into
+    // it, so a kick never permanently steals the player's look direction.
+    const cam = this.player.getCameraState();
+    this.turnX = shortestAngle(cam.yaw - this.lastYaw);
+    this.turnY = cam.pitch - this.lastPitch;
+    this.lastYaw = cam.yaw;
+    this.lastPitch = cam.pitch;
+
+    const w = this.weapons?.state;
+    if (w) {
+      cam.pitch = clamp(cam.pitch + w.recoilPitch, -MAX_CAMERA_PITCH, MAX_CAMERA_PITCH);
+      cam.yaw += w.recoilYaw;
+      cam.fovDegrees *= lerp(1, w.definition.adsFovScale, w.ads);
+    }
+    this.renderer.setCamera(cam);
     this.renderer.setTimeOfDay(TIME_OF_DAY);
     const hit = this.player.target.hit;
     this.renderer.setBlockHighlight(hit ? hit.block : null);
@@ -269,6 +347,31 @@ export class Game {
     if (this.entities && this.entityRenderer) {
       this.entityRenderer.sync(this.entities.all);
       this.entityRenderer.update(this.entities.all);
+    }
+
+    if (this.viewmodel && this.weapons && w) {
+      const s = this.player.state;
+      this.viewmodel.syncFov(cam, lerp(1, w.definition.adsFovScale, w.ads));
+      this.viewmodel.update(
+        {
+          age: this.weapons.age,
+          speed: Math.hypot(s.velocity.x, s.velocity.z),
+          distance: this.walkedDistance,
+          ads: w.ads,
+          fire: this.weapons.fireKick,
+          reload: this.weapons.reloadProgress,
+          empty: w.ammo <= 0,
+          airborne: !s.onGround,
+          turnX: this.turnX,
+          turnY: this.turnY,
+        },
+        this.weapons.flashLeft,
+        this.renderer.stats.frameMs / 1000,
+      );
+      // The look delta is consumed by the sway; clear it so a paused frame does
+      // not keep swinging the weapon.
+      this.turnX = 0;
+      this.turnY = 0;
     }
 
     this.renderer.render(alpha);
@@ -417,6 +520,14 @@ export class Game {
       hotbar,
       selectedSlot: this.inventory.selectedSlot,
       toast: null,
+      weapon: this.weapons?.state
+        ? {
+            name: this.weapons.state.definition.displayName,
+            ammo: this.weapons.state.ammo,
+            magazine: this.weapons.state.definition.magazineSize,
+            reloading: this.weapons.state.reloading,
+          }
+        : null,
     };
     this.bridge.setSnapshot({ hud });
     void force;
@@ -484,6 +595,10 @@ export class Game {
     this.loop?.stop();
     this.loop = null;
     this.input.detach();
+    this.viewmodel?.dispose();
+    this.viewmodel = null;
+    this.weapons = null;
+    this.walkedDistance = 0;
     this.entityRenderer?.dispose();
     this.entityRenderer = null;
     this.entities?.clear();
@@ -569,6 +684,7 @@ export class Game {
   }
 
   private syncCanvasSize(): void {
+    if (this.canvas) this.viewmodel?.resize(this.canvas.clientWidth, this.canvas.clientHeight);
     if (!this.canvas || !this.renderer) return;
     const w = this.canvas.clientWidth || window.innerWidth;
     const h = this.canvas.clientHeight || window.innerHeight;

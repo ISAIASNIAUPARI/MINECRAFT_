@@ -82,6 +82,11 @@ export interface HudSnapshot {
   selectedSlot: number; // 0..8
   /** Short-lived pickup / status toast text. */
   toast: string | null;
+  /**
+   * ADDITIVE (optional). The held weapon's ammunition. Absent when nothing is
+   * held, so a UI that ignores it still renders correctly.
+   */
+  weapon?: { name: string; ammo: number; magazine: number; reloading: boolean } | null;
 
   // ── Phase-1 UI additions ─────────────────────────────────────────────
   // WIRING NOTE (src/game/Game.ts → pushHud): populate these from
