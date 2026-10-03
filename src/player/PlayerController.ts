@@ -28,6 +28,9 @@ const SPRINT_SPEED = 6.2;
 const SNEAK_SPEED = 1.6;
 const FLY_SPEED = 11;
 const JUMP_VELOCITY = 9.2;
+/** Seconds of immunity after taking a hit, so contact damage cannot drain at tick rate. */
+const HURT_INVULNERABILITY = 0.5;
+
 const MOUSE_SENSITIVITY = 0.0022;
 const MAX_PITCH = Math.PI / 2 - 0.01;
 
@@ -43,6 +46,8 @@ export class PlayerController implements IPlayerController {
 
   private readonly collider = new CollisionResolver();
   private readonly voxelView: VoxelView;
+  /** Seconds of damage immunity remaining. */
+  private invulnerable = 0;
   private breakCooldown = 0;
   private placeCooldown = 0;
 
@@ -105,6 +110,7 @@ export class PlayerController implements IPlayerController {
   tick(dt: number): void {
     this.breakCooldown = Math.max(0, this.breakCooldown - dt);
     this.placeCooldown = Math.max(0, this.placeCooldown - dt);
+    this.invulnerable = Math.max(0, this.invulnerable - dt);
 
     if (this.input.consumePressed('jump') && this.state.gameMode === GameMode.Creative) {
       // double-tap-ish: toggle fly when airborne jump pressed
@@ -245,7 +251,22 @@ export class PlayerController implements IPlayerController {
     if (pitch !== undefined) this.state.pitch = pitch;
   }
 
+  /**
+   * Apply damage, honouring invulnerability frames so a creature standing in
+   * contact cannot drain the player at tick rate. Creative players are immune.
+   * Returns true when the hit actually landed.
+   */
+  hurt(amount: number): boolean {
+    const s = this.state;
+    if (amount <= 0 || s.gameMode === GameMode.Creative) return false;
+    if (this.invulnerable > 0 || s.stats.health <= 0) return false;
+    this.invulnerable = HURT_INVULNERABILITY;
+    s.stats.health = Math.max(0, s.stats.health - amount);
+    return true;
+  }
+
   respawn(): void {
+    this.invulnerable = 0;
     this.state.stats.health = this.state.stats.maxHealth;
     this.state.stats.hunger = 20;
     this.state.stats.fallDistance = 0;

@@ -19,6 +19,7 @@ export type InputAction =
   | 'open_inventory'
   | 'toggle_perspective'
   | 'toggle_debug'
+  | 'debug_spawn' // dev: drop the test creature in front of the player
   | 'chat_or_command'
   | 'pause'
   | 'hotbar_1'

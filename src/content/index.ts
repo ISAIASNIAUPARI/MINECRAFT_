@@ -14,6 +14,7 @@ import {
   type IRecipeRegistry,
 } from '../crafting';
 import { BiomeRegistry, registerCoreBiomes, type IBiomeRegistry } from '../world';
+import { EntityRegistry, registerCoreCreatures, type IEntityRegistry } from '../entities';
 
 /**
  * The assembled Phase 1 content pack. Phase 4 lets mods contribute to each
@@ -24,6 +25,7 @@ export interface GameContent {
   items: IItemRegistry;
   recipes: IRecipeRegistry;
   biomes: IBiomeRegistry;
+  creatures: IEntityRegistry;
   stackOps: ItemStackOps;
   crafting: ICraftingResolver;
 }
@@ -40,6 +42,7 @@ export function createGameContent(): GameContent {
   const items = new ItemRegistry();
   const recipes = new RecipeRegistry();
   const biomes = new BiomeRegistry();
+  const creatures = new EntityRegistry();
 
   registerCoreBlocks(blocks);
   blocks.finalize();
@@ -51,6 +54,9 @@ export function createGameContent(): GameContent {
   registerCoreBiomes(biomes);
   biomes.finalize();
 
+  registerCoreCreatures(creatures);
+  creatures.finalize();
+
   recipes.registerAll(CORE_RECIPES);
   recipes.finalize();
 
@@ -61,5 +67,5 @@ export function createGameContent(): GameContent {
     (tag) => TAG_MEMBERS[tag] ?? [],
   );
 
-  return { blocks, items, recipes, biomes, stackOps, crafting };
+  return { blocks, items, recipes, biomes, creatures, stackOps, crafting };
 }

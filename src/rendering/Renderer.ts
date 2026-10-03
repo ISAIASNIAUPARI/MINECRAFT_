@@ -150,6 +150,14 @@ export class Renderer implements IRenderer {
     this.highlight.position.set(target.x + 0.5, target.y + 0.5, target.z + 0.5);
   }
 
+  /**
+   * The live Three.js scene, so sibling renderers (entities, particles) can add
+   * their own object graphs instead of this class growing to know about them.
+   */
+  get threeScene(): THREE.Scene {
+    return this.scene;
+  }
+
   render(_alpha: number): void {
     const now = performance.now();
     this._stats.frameMs = now - this.lastFrameTime;

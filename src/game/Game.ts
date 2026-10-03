@@ -12,6 +12,9 @@ import { InputManager } from '../input/InputManager';
 import { PlayerController } from '../player/PlayerController';
 import { PlayerInventory } from '../inventory/PlayerInventory';
 import { MemoryStorage } from '../storage/MemoryStorage';
+import { EntityManager, EntityRenderer, type BrainSenses, type IEntity } from '../entities';
+import { raycastVoxel } from '../physics/raycast';
+import type { VoxelView } from '../physics/types';
 import { normalizeSeed } from '../core/rng';
 import { GameLoop } from './GameLoop';
 import { GameBridgeImpl } from './GameBridgeImpl';
@@ -23,6 +26,8 @@ const HUD_INTERVAL = 0.1;
 const AUTOSAVE_INTERVAL = 30;
 /** Kept small while chunk generation is synchronous; the engine agent raises this with the worker pool. */
 const SKELETON_RENDER_DISTANCE = 5;
+/** Fixed time of day until the day/night cycle lands (Phase 2). 0 = midnight. */
+const TIME_OF_DAY = 0.32;
 
 /**
  * The orchestrator. Owns the fixed-timestep loop and wires the subsystems
@@ -40,6 +45,11 @@ export class Game {
   private world: World | null = null;
   private generator: WorldGenerator | null = null;
   private renderer: Renderer | null = null;
+  private entities: EntityManager | null = null;
+  private entityRenderer: EntityRenderer | null = null;
+  private voxels: VoxelView | null = null;
+  private canSee: BrainSenses['canSee'] | null = null;
+  private elapsed = 0;
   private player: PlayerController | null = null;
   private inventory: PlayerInventory | null = null;
   private storage: MemoryStorage | null = null;
@@ -132,6 +142,39 @@ export class Game {
         (x, y, z, id) => this.onBlockBroken(x, y, z, id, options.gameMode),
       );
 
+      // --- entities ----------------------------------------------------
+      const world = this.world;
+      const blockReg = blocks;
+      const voxels = {
+        getBlock: (x: number, y: number, z: number) => world.getBlock(x, y, z),
+        isSolid: (x: number, y: number, z: number) => blockReg.isSolid(world.getBlock(x, y, z)),
+      };
+      this.voxels = voxels;
+      this.canSee = (from, to, maxDistance) => {
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const dz = to.z - from.z;
+        const len = Math.hypot(dx, dy, dz);
+        if (len < 1e-4) return true;
+        if (len > maxDistance) return false;
+        const hit = raycastVoxel(
+          voxels,
+          from,
+          { x: dx / len, y: dy / len, z: dz / len },
+          len,
+          (id) => blockReg.isSolid(id),
+        );
+        return hit === null;
+      };
+
+      this.entities = new EntityManager({
+        registry: this.content.creatures,
+        seed,
+        onDeath: (entity) => this.onEntityDeath(entity),
+        onAttackPlayer: (_entity, damage) => this.player?.hurt(damage),
+      });
+      this.entityRenderer = new EntityRenderer(this.renderer.threeScene);
+
       this.input.attach(this.canvas);
       this.input.load();
       this.input.setEnabled(true);
@@ -183,6 +226,23 @@ export class Game {
     this.player.tick(dt);
     this.world.tick(dt);
     this.worldTimeTicks++;
+    this.elapsed += dt;
+
+    if (this.entities && this.voxels && this.canSee) {
+      const p = this.player.state;
+      this.entities.tick({
+        dt,
+        senses: {
+          voxels: this.voxels,
+          // Yaw rides along so freeze-when-watched brains can test the sight cone.
+          playerPosition: { x: p.position.x, y: p.position.y, z: p.position.z, yaw: p.yaw },
+          lightAt: (x, y, z) => this.skyLightAt(x, y, z),
+          canSee: this.canSee,
+          elapsed: this.elapsed,
+          timeOfDay: TIME_OF_DAY,
+        },
+      });
+    }
 
     const p = this.player.state.position;
     this.world.update({ cx: worldToChunk(p.x), cy: worldToChunk(p.y), cz: worldToChunk(p.z) });
@@ -201,9 +261,15 @@ export class Game {
     if (!this.renderer || !this.player) return;
     this.player.updateLook(alpha);
     this.renderer.setCamera(this.player.getCameraState());
-    this.renderer.setTimeOfDay(0.32);
+    this.renderer.setTimeOfDay(TIME_OF_DAY);
     const hit = this.player.target.hit;
     this.renderer.setBlockHighlight(hit ? hit.block : null);
+
+    if (this.entities && this.entityRenderer) {
+      this.entityRenderer.sync(this.entities.all);
+      this.entityRenderer.update(this.entities.all);
+    }
+
     this.renderer.render(alpha);
 
     this.hudTimer += this.renderer.stats.frameMs / 1000;
@@ -223,6 +289,7 @@ export class Game {
       else this.pause();
     }
     if (this.input.consumePressed('toggle_debug')) this.toggleDebug();
+    if (this.input.consumePressed('debug_spawn')) this.spawnTestCreature();
     if (this.input.consumePressed('open_inventory') && !this.paused) this.toggleInventory();
   }
 
@@ -375,7 +442,7 @@ export class Game {
       chunksRendered: this.renderer.stats.chunkMeshes,
       triangles: this.renderer.stats.triangles,
       drawCalls: this.renderer.stats.drawCalls,
-      entities: 0,
+      entities: this.entities?.all.length ?? 0,
       seed: this.world.seed,
       worldTime: this.worldTimeTicks,
       memoryMB: mem ? +(mem.usedJSHeapSize / 1048576).toFixed(1) : null,
@@ -416,6 +483,13 @@ export class Game {
     this.loop?.stop();
     this.loop = null;
     this.input.detach();
+    this.entityRenderer?.dispose();
+    this.entityRenderer = null;
+    this.entities?.clear();
+    this.entities = null;
+    this.voxels = null;
+    this.canSee = null;
+    this.elapsed = 0;
     this.renderer?.dispose();
     this.renderer = null;
     this.world?.dispose();
@@ -425,6 +499,52 @@ export class Game {
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     this.bridge.setSnapshot({ phase: 'menu', hud: null, debug: null, worldName: null, inventoryOpen: false });
+  }
+
+  /**
+   * Sky light at a block, 0..15.
+   *
+   * There is no voxel light propagation yet, so this answers the only question
+   * spawning and horror brains actually ask: is this spot open to the sky?
+   * Anything with solid blocks overhead reads as dark. Replace this when the
+   * real light engine lands; nothing else needs to change.
+   */
+  private skyLightAt(x: number, y: number, z: number): number {
+    if (!this.world || !this.content) return 15;
+    const blocks = this.content.blocks;
+    for (let probe = y + 1; probe < WORLD_MAX_Y; probe++) {
+      if (blocks.isSolid(this.world.getBlock(x, probe, z))) return 0;
+    }
+    // Open to the sky: bright by day, dark at night.
+    const day = Math.sin(TIME_OF_DAY * Math.PI * 2 - Math.PI / 2) * 0.5 + 0.5;
+    return Math.round(day * 15);
+  }
+
+  /**
+   * Drop the reference creature a few blocks ahead of the player. Bound to F6
+   * so creature work can be eyeballed without waiting for natural spawning.
+   */
+  private spawnTestCreature(): void {
+    if (!this.entities || !this.player || !this.world) return;
+    const s = this.player.state;
+    const dist = 6;
+    const x = s.position.x - Math.sin(s.yaw) * dist;
+    const z = s.position.z - Math.cos(s.yaw) * dist;
+    const ground = this.world.getSurfaceY(Math.floor(x), Math.floor(z));
+    const y = ground >= 0 ? ground + 1 : s.position.y;
+    this.entities.spawn('voxelia:hollow', { x, y, z });
+  }
+
+  /** Roll a dead creature's drops into the player's inventory. */
+  private onEntityDeath(entity: IEntity): void {
+    if (!this.inventory || !this.content) return;
+    for (const drop of entity.definition.drops ?? []) {
+      if (Math.random() > drop.chance) continue;
+      const count = drop.min + Math.floor(Math.random() * (drop.max - drop.min + 1));
+      if (count <= 0) continue;
+      const item = this.content.items.byName(drop.item);
+      if (item) this.inventory.add({ item: item.numericId, count });
+    }
   }
 
   private async save(): Promise<void> {
