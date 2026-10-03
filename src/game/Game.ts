@@ -14,6 +14,8 @@ import { PlayerInventory } from '../inventory/PlayerInventory';
 import { MemoryStorage } from '../storage/MemoryStorage';
 import { EntityManager, EntityRenderer, type BrainSenses, type IEntity } from '../entities';
 import { CORE_WEAPONS, ViewmodelRenderer, WeaponSystem } from '../weapons';
+import { Excavator } from '../world/Excavator';
+import type { LeviathanBrain } from '../entities/leviathan';
 import { raycastVoxel } from '../physics/raycast';
 import type { VoxelView } from '../physics/types';
 import { normalizeSeed } from '../core/rng';
@@ -71,6 +73,10 @@ export class Game {
   private walkedDistance = 0;
   private lastYaw = 0;
   private lastPitch = 0;
+  private excavator: Excavator | null = null;
+  /** Seconds of camera shake left, and how hard. */
+  private shakeLeft = 0;
+  private shakePower = 0;
   private player: PlayerController | null = null;
   private inventory: PlayerInventory | null = null;
   private storage: MemoryStorage | null = null;
@@ -195,6 +201,7 @@ export class Game {
         onAttackPlayer: (_entity, damage) => this.player?.hurt(damage),
       });
       this.entityRenderer = new EntityRenderer(this.renderer.threeScene, this.atlas);
+      this.excavator = new Excavator(this.world, blocks);
 
       this.weapons = new WeaponSystem({
         weapons: CORE_WEAPONS,
@@ -265,6 +272,7 @@ export class Game {
     this.world.tick(dt);
     this.worldTimeTicks++;
     this.elapsed += dt;
+    this.shakeLeft = Math.max(0, this.shakeLeft - dt);
 
     if (this.weapons && this.player) {
       const cam = this.player.getCameraState();
@@ -291,6 +299,8 @@ export class Game {
       );
       if (this.weapons.ejectedThisTick) this.viewmodel?.ejectCasing();
     }
+
+    this.tickLeviathans();
 
     if (this.entities && this.voxels && this.canSee) {
       const p = this.player.state;
@@ -332,6 +342,12 @@ export class Game {
     this.turnY = cam.pitch - this.lastPitch;
     this.lastYaw = cam.yaw;
     this.lastPitch = cam.pitch;
+
+    if (this.shakeLeft > 0) {
+      const k = this.shakeLeft * this.shakePower;
+      cam.pitch += (Math.random() - 0.5) * k;
+      cam.yaw += (Math.random() - 0.5) * k;
+    }
 
     const w = this.weapons?.state;
     if (w) {
@@ -635,6 +651,73 @@ export class Game {
     const day = Math.sin(TIME_OF_DAY * Math.PI * 2 - Math.PI / 2) * 0.5 + 0.5;
     return Math.round(day * 15);
   }
+
+  /**
+   * Terrain destruction, driven by whichever creatures carve. Runs only on the
+   * tick a strike actually lands, and every carve is bounded by the excavator —
+   * nothing here ever searches the world.
+   */
+  private tickLeviathans(): void {
+    if (!this.entities || !this.excavator) return;
+    for (const e of this.entities.all) {
+      const brain = e.brain as Partial<LeviathanBrain>;
+      if (brain.struckThisTick === undefined) continue;
+
+      if (brain.struckThisTick) {
+        const dir = brain.heading;
+        this.excavator.carve({
+          at: e.position,
+          radius: e.definition.width * 2.6,
+          along: dir ? { x: dir.x * 0.3, y: -1, z: dir.z * 0.3 } : { x: 0, y: -1, z: 0 },
+          elongation: 2.2,
+          budget: 900,
+          seed: e.id,
+        });
+        this.markAroundRadius(e.position, e.definition.width * 3);
+        this.shake(0.7, 0.05, e.position);
+      }
+
+      if (brain.emergedThisTick) {
+        this.excavator.carve({
+          at: e.position,
+          radius: e.definition.width * 2.2,
+          along: { x: 0, y: 1, z: 0 },
+          elongation: 1.8,
+          budget: 600,
+          seed: e.id ^ 0x9e37,
+        });
+        this.markAroundRadius(e.position, e.definition.width * 2.6);
+        this.shake(0.5, 0.035, e.position);
+      }
+    }
+  }
+
+  /** Shake the camera, falling off with distance from the source. */
+  private shake(seconds: number, power: number, from?: { x: number; y: number; z: number }): void {
+    let scale = 1;
+    if (from && this.player) {
+      const p = this.player.state.position;
+      const d = Math.hypot(p.x - from.x, p.y - from.y, p.z - from.z);
+      scale = Math.max(0, 1 - d / 60);
+    }
+    if (scale <= 0) return;
+    this.shakeLeft = Math.max(this.shakeLeft, seconds);
+    this.shakePower = Math.max(this.shakePower, power * scale);
+  }
+
+  /** Mark every chunk inside `radius` dirty, so a carve actually remeshes. */
+  private markAroundRadius(at: { x: number; y: number; z: number }, radius: number): void {
+    const r = Math.ceil(radius) + 1;
+    for (let dx = -r; dx <= r; dx += CHUNK_SIZE) {
+      for (let dy = -r; dy <= r; dy += CHUNK_SIZE) {
+        for (let dz = -r; dz <= r; dz += CHUNK_SIZE) {
+          this.markAround(at.x + dx, at.y + dy, at.z + dz);
+        }
+      }
+    }
+    this.markAround(at.x, at.y, at.z);
+  }
+
 
   /**
    * Drop the reference creature a few blocks ahead of the player. Bound to F6

@@ -15,4 +15,11 @@ export {
   steerTowards,
   type StalkerConfig,
 } from './ai';
-export { CORE_CREATURES, registerCoreCreatures, HOLLOW, STAGWRAITH, LURKER, DEVOURER } from './creatures';
+export {
+  createLeviathanBrain,
+  DEFAULT_LEVIATHAN,
+  type LeviathanBrain,
+  type LeviathanConfig,
+  type LeviathanState,
+} from './leviathan';
+export { CORE_CREATURES, registerCoreCreatures, HOLLOW, STAGWRAITH, LURKER, DEVOURER, ABYSSAL_WORM } from './creatures';

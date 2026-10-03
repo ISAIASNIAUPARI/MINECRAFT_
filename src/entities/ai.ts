@@ -10,7 +10,7 @@ import type { Brain, BrainSenses, IEntity, Intent, PlayerSense } from './types';
 
 /** A do-nothing intent. Mutate and return it to avoid per-tick allocation. */
 export function idleIntent(): Intent {
-  return { moveX: 0, moveZ: 0, throttle: 0, jump: false, lookAt: null, attack: 0 };
+  return { moveX: 0, moveY: 0, moveZ: 0, throttle: 0, jump: false, lookAt: null, attack: 0 };
 }
 
 export function distanceXZ(a: Vec3, b: Vec3): number {
@@ -137,6 +137,7 @@ export function createStalkerBrain(rng: Rng, config: Partial<StalkerConfig> = {}
 
   const reset = (): void => {
     intent.moveX = 0;
+    intent.moveY = 0;
     intent.moveZ = 0;
     intent.throttle = 0;
     intent.jump = false;

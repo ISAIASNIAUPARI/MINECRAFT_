@@ -73,6 +73,12 @@ const CREATURE_PALETTE: Record<string, [number, number, number]> = {
   devourer_char: [30, 27, 36],
   devourer_void: [48, 24, 72],
   devourer_corrupt: [92, 40, 140],
+
+  // Abyssal Worm
+  worm_rock: [34, 29, 27],
+  worm_rock_lit: [54, 45, 41],
+  worm_rock_dark: [21, 18, 17],
+  worm_burnt: [62, 38, 30],
 };
 
 /** Every creature skin key, for registering them with the atlas. */

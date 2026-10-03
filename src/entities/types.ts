@@ -40,6 +40,11 @@ export interface Intent {
   /** Desired horizontal direction, unit-ish. Zero = stand still. */
   moveX: number;
   moveZ: number;
+  /**
+   * Desired vertical direction, -1..1. Ignored by anything that falls under
+   * gravity; a flier steers with it the same way it steers horizontally.
+   */
+  moveY: number;
   /** Fraction of `moveSpeed` to use, 0..1. */
   throttle: number;
   /** Request a jump this tick (honoured only when on the ground). */
@@ -135,8 +140,23 @@ export interface CreatureDefinition {
   attackRange?: number;
   /** Falls under gravity. Set false for anything that floats. */
   gravity?: boolean;
+  /**
+   * Resolved against the voxel world. Set false for something that passes
+   * through terrain — a burrowing creature cannot be stopped by the ground it
+   * is carving through.
+   */
+  collides?: boolean;
   /** Model root parts, in model units. */
   model: readonly ModelPart[];
+  /**
+   * Uniform scale applied to the whole model when it is drawn. Default 1.
+   *
+   * For anything enormous: authoring a 50-block creature in 1/16-block units
+   * means every number in its file is in the hundreds, which is unreadable and
+   * easy to get wrong. Author at comfortable proportions and set this instead.
+   * It does NOT change the hitbox — `width`/`height` stay authoritative.
+   */
+  modelScale?: number;
   /** Per-frame pose. Omitted = a static model. */
   animate?: Animator;
   /**

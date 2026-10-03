@@ -156,8 +156,15 @@ export class ViewmodelRenderer {
   /** Draw over the world, with depth cleared so nothing can clip into it. */
   render(renderer: THREE.WebGLRenderer): void {
     if (!this.instance) return;
+    // `render` clears COLOUR as well as depth by default, which wipes the world
+    // that was just drawn and leaves only the weapon on the clear colour. Turn
+    // the automatic clear off, clear depth alone so the weapon sits in front,
+    // and restore it for the next world pass.
+    const previousAutoClear = renderer.autoClear;
+    renderer.autoClear = false;
     renderer.clearDepth();
     renderer.render(this.scene, this.camera);
+    renderer.autoClear = previousAutoClear;
   }
 
   dispose(): void {

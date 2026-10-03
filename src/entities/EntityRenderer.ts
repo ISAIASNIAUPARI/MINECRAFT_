@@ -34,6 +34,9 @@ export class EntityRenderer {
       seen.add(e.id);
       if (!this.views.has(e.id)) {
         const view = this.factory.build(e.definition.model, `entity:${e.definition.name}:${e.id}`);
+        if (e.definition.modelScale && e.definition.modelScale !== 1) {
+          view.root.scale.setScalar(e.definition.modelScale);
+        }
         this.container.add(view.root);
         this.views.set(e.id, view);
       }

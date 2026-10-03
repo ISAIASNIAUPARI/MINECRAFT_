@@ -139,16 +139,38 @@ export class EntityManager implements IEntityManager {
       }
 
       // --- vertical motion ---------------------------------------------
-      if (intent.jump && e.onGround) {
-        e.velocity.y = def.jumpSpeed ?? 8.2;
-        e.onGround = false;
-      }
-      if (def.gravity !== false) {
+      if (def.gravity === false) {
+        // A flier steers vertically the same way it steers horizontally, and
+        // bleeds off vertical speed when it stops asking for any.
+        const wantY = intent.moveY * targetSpeed;
+        if (intent.throttle > 0 && intent.moveY !== 0) {
+          e.velocity.y = approach(e.velocity.y, wantY, ACCELERATION * dt);
+        } else {
+          e.velocity.y = approach(e.velocity.y, 0, FRICTION * 0.5 * dt);
+        }
+      } else {
+        if (intent.jump && e.onGround) {
+          e.velocity.y = def.jumpSpeed ?? 8.2;
+          e.onGround = false;
+        }
         e.velocity.y = Math.max(e.velocity.y - GRAVITY * dt, -TERMINAL_VELOCITY);
       }
 
       // --- resolve against the world ------------------------------------
       const before = { x: e.position.x, z: e.position.z };
+      if (def.collides === false) {
+        // Passes through terrain: integrate directly. Used by anything that
+        // burrows, which cannot be blocked by the ground it is carving.
+        e.position.x += e.velocity.x * dt;
+        e.position.y += e.velocity.y * dt;
+        e.position.z += e.velocity.z * dt;
+        e.onGround = false;
+        e.distanceWalked += Math.hypot(e.position.x - before.x, e.position.z - before.z);
+        this.resolveMelee(e, def, intent, senses);
+        if (e.health <= 0) e.kill();
+        if (e.dead) this.reaping.set(e.id, CORPSE_SECONDS);
+        continue;
+      }
       const result = this.collision.move(senses.voxels, {
         aabb: e.aabb,
         velocity: e.velocity,
@@ -164,26 +186,33 @@ export class EntityManager implements IEntityManager {
       e.onGround = result.onGround;
       e.distanceWalked += Math.hypot(e.position.x - before.x, e.position.z - before.z);
 
-      // --- melee ----------------------------------------------------------
-      if (intent.attack > 0 && e.attackCooldown <= 0) {
-        const damage = def.attackDamage ?? 0;
-        const player = senses.playerPosition;
-        if (damage > 0 && player) {
-          const reach = (def.attackRange ?? 1.2) + def.width * 0.5;
-          const gap = Math.hypot(player.x - e.position.x, player.z - e.position.z);
-          const vertical = Math.abs(player.y - e.position.y);
-          if (gap <= reach && vertical <= def.height + 0.5) {
-            e.attackCooldown = def.attackCooldown ?? 1;
-            this.opts.onAttackPlayer?.(e, damage);
-          }
-        }
-      }
+      this.resolveMelee(e, def, intent, senses);
 
       if (e.health <= 0) e.kill();
       if (e.dead) this.reaping.set(e.id, CORPSE_SECONDS);
     }
 
     this.reap();
+  }
+
+  /** Land a contact hit on the player when one is in reach and off cooldown. */
+  private resolveMelee(
+    e: Entity,
+    def: Entity['definition'],
+    intent: { attack: number },
+    senses: EntityTickContext['senses'],
+  ): void {
+    if (intent.attack <= 0 || e.attackCooldown > 0) return;
+    const damage = def.attackDamage ?? 0;
+    const player = senses.playerPosition;
+    if (damage <= 0 || !player) return;
+    const reach = (def.attackRange ?? 1.2) + def.width * 0.5;
+    const gap = Math.hypot(player.x - e.position.x, player.z - e.position.z);
+    const vertical = Math.abs(player.y - e.position.y);
+    if (gap <= reach && vertical <= def.height + 0.5) {
+      e.attackCooldown = def.attackCooldown ?? 1;
+      this.opts.onAttackPlayer?.(e, damage);
+    }
   }
 
   private tickCorpse(e: Entity, dt: number): void {

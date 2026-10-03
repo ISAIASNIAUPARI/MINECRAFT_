@@ -4,3 +4,4 @@ export { BiomeRegistry } from './BiomeRegistry';
 export { registerCoreBiomes } from './biomes';
 export { WorldGenerator } from './WorldGenerator';
 export { ChunkGeneratorAdapter } from './ChunkGeneratorAdapter';
+export { Excavator, MAX_BLOCK_BUDGET, type CarveOptions, type CarveResult } from './Excavator';

@@ -244,7 +244,7 @@ describe('creature models', () => {
 
 describe('steering helpers', () => {
   it('produces a unit heading toward the target', () => {
-    const intent: Intent = { moveX: 0, moveZ: 0, throttle: 0, jump: false, lookAt: null, attack: 0 };
+    const intent: Intent = { moveX: 0, moveY: 0, moveZ: 0, throttle: 0, jump: false, lookAt: null, attack: 0 };
     steerTowards(intent, { x: 0, y: 0, z: 0 }, { x: 3, y: 0, z: 4 }, 1);
     expect(Math.hypot(intent.moveX, intent.moveZ)).toBeCloseTo(1, 6);
     expect(intent.moveX).toBeCloseTo(0.6, 6);
@@ -252,7 +252,7 @@ describe('steering helpers', () => {
   });
 
   it('stands still when already on the target', () => {
-    const intent: Intent = { moveX: 1, moveZ: 1, throttle: 1, jump: false, lookAt: null, attack: 0 };
+    const intent: Intent = { moveX: 1, moveY: 0, moveZ: 1, throttle: 1, jump: false, lookAt: null, attack: 0 };
     steerTowards(intent, { x: 2, y: 0, z: 2 }, { x: 2, y: 0, z: 2 }, 1);
     expect(intent.throttle).toBe(0);
   });

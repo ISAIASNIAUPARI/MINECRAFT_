@@ -107,7 +107,32 @@ The tell for a wedged creature is `onGround: false` with a constant positive
 > timestep deterministically — and measure elapsed *simulated* time
 > (`__voxelia.elapsed`), never wall-clock seconds.
 
-## 7. Hitboxes
+## 7. Giants and fliers
+
+Three switches turn a normal creature into something the ground rules do not
+cover. All three are on `CreatureDefinition`:
+
+- **`gravity: false`** makes it fly. A flier steers vertically with
+  `Intent.moveY` exactly as it steers horizontally; the ground brain in `ai.ts`
+  never sets it, so a flier needs its own brain (see `leviathan.ts`).
+- **`collides: false`** lets it pass through terrain. Needed by anything that
+  burrows — it cannot be stopped by the ground it is carving.
+- **`modelScale`** draws the model larger without inflating every number in its
+  file. Authoring a 50-block creature in 1/16-block units puts every dimension
+  in the hundreds. It does **not** change the hitbox: `width` and `height` stay
+  authoritative, and for a giant the hitbox should cover the part that matters
+  (the Worm's is its head) rather than the whole silhouette.
+
+A creature with many visual segments stays **one entity**. The segments are a
+nested chain in the model, posed with a phase offset per link so the bend
+travels down the body. One collider per segment would be a swarm, not a
+creature.
+
+Terrain destruction goes through `Excavator`, which is bounded by radius, a
+block budget and a protected-id list, and never searches outside the volume it
+is handed.
+
+## 8. Hitboxes
 
 One box per creature: `width` × `height`, centred on its feet. That is the whole
 collision model and it is deliberate.
@@ -117,7 +142,7 @@ decoration. Gameplay and performance beat geometric fidelity.
 
 ---
 
-## 8. Animation
+## 9. Animation
 
 Animations are rotations, offsets and visibility on named parts — no skinning,
 no deformation, no blend trees.
@@ -146,7 +171,7 @@ decides anything.
 
 ---
 
-## 9. Behaviour
+## 10. Behaviour
 
 Compose from `ai.ts`. Do not reimplement steering, sight or obstacle handling.
 
@@ -166,7 +191,7 @@ world and change anything — that asymmetry is deliberate and must stay.
 
 ---
 
-## 10. Performance
+## 11. Performance
 
 The engine owns the cost model. A creature file does not optimise; it stays
 within the shapes above and the cost follows.
@@ -197,7 +222,7 @@ expensive test behind a cheap one.
 
 ---
 
-## 11. Spawn and death
+## 12. Spawn and death
 
 Death stops the brain, runs the death pose, lingers briefly so the kill reads,
 then reaps and rolls drops. All of that is the manager's job; a creature declares
@@ -208,7 +233,7 @@ despawning repeatedly does not churn memory.
 
 ---
 
-## 12. Not built yet
+## 13. Not built yet
 
 Stated plainly so nobody designs against something that does not exist:
 
@@ -219,6 +244,7 @@ Stated plainly so nobody designs against something that does not exist:
 | Natural spawning | `SpawnRule` is declared and read by nothing. Use `spawn()` or the **G** key. |
 | Pathfinding | **Does not exist.** Brains steer straight at the target and hop one-block ledges. A creature that falls into a cave or meets a wall it cannot steer around will stand there wanting to move. Test behaviour on flat ground to tell a creature bug from this. |
 | Ranged attacks | **Does not exist.** No projectiles, so a creature cannot throw or fire anything. |
+| Particles | **Does not exist.** Impact dust, debris and smoke cannot be drawn. Fixed model parts on duty cycles are the workaround (see the Devourer's shards and the Worm's seams). |
 | Voxel light propagation | **Does not exist.** `lightAt` answers "open to the sky?" — a torch creates no safe bubble. |
 
 If a creature's design depends on one of these, say so and we build the system
@@ -227,7 +253,7 @@ you does not work until it exists.
 
 ---
 
-## 13. Before adding any creature
+## 14. Before adding any creature
 
 1. Read [`CREATURES.md`](./CREATURES.md) and `hollow.ts`.
 2. Reuse the existing entity, animation, material, collision and AI systems.
