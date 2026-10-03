@@ -6,7 +6,7 @@ import { createGameContent, type GameContent } from '../content';
 import { World } from '../engine/World';
 import type { IChunk } from '../engine/types';
 import { WorldGenerator, ChunkGeneratorAdapter } from '../world';
-import { NaiveMesher, Renderer, TextureAtlas, collectTextureKeys } from '../rendering';
+import { NaiveMesher, Renderer, TextureAtlas, collectTextureKeys, CREATURE_TEXTURE_KEYS } from '../rendering';
 import type { ChunkMeshView } from '../rendering/types';
 import { InputManager } from '../input/InputManager';
 import { PlayerController } from '../player/PlayerController';
@@ -124,7 +124,7 @@ export class Game {
       this.world.ensureSpawnArea({ cx: 0, cy: 0, cz: 0 }, 3);
 
       this.bridge.setSnapshot({ loading: { label: 'Building meshes', progress: 0.65 } });
-      this.atlas = new TextureAtlas(collectTextureKeys([...blocks.all]));
+      this.atlas = new TextureAtlas([...collectTextureKeys([...blocks.all]), ...CREATURE_TEXTURE_KEYS]);
       this.renderer = new Renderer(this.canvas, this.atlas, blocks);
       this.syncCanvasSize();
       this.installResizeObserver();
@@ -174,7 +174,7 @@ export class Game {
         onDeath: (entity) => this.onEntityDeath(entity),
         onAttackPlayer: (_entity, damage) => this.player?.hurt(damage),
       });
-      this.entityRenderer = new EntityRenderer(this.renderer.threeScene);
+      this.entityRenderer = new EntityRenderer(this.renderer.threeScene, this.atlas);
 
       this.input.attach(this.canvas);
       this.input.load();

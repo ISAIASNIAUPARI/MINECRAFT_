@@ -4,91 +4,115 @@ import type { CreatureDefinition, ModelPart, Rgb } from '../types';
 /**
  * The Stagwraith — a towering antlered revenant that stalks the night forest.
  *
- * Silhouette is the whole design: enormous + emaciated + deer skull + branching
- * antlers + arms that hang to the knees. It must be identifiable as a black
- * shape through fog, before any detail reads.
+ * Built to the supplied reference. Three things carry the likeness and each one
+ * is worth boxes:
+ *
+ *  1. **Pale bone flesh with dark red weeping, not a black body.** The reference
+ *     creature is a pallid tan thing streaked with old blood. Flat uniform
+ *     colour is what makes voxel models read as a pile of cubes, so every large
+ *     mass is segmented into two or three slabs of shifting tone, and the gore
+ *     runs down the chest and arms as its own thin plates.
+ *  2. **Heavy arms, not sticks.** They hang nearly to the ground, thick at the
+ *     shoulder, ending in broad hands with four long tapering claws.
+ *  3. **A recessed face.** Deep dark sockets with the eyes burning inside them,
+ *     and a long black gash down the muzzle — not eyes pasted onto a cube.
  *
  * Model units are 1/16 block. The origin is between its feet, +Y is up and
  * -Z is forward.
  *
- * Box budget: 36, over the ~20 the standard says to justify. The overage is
- * entirely silhouette: 8 go to the branching antlers and 6 to the long claws,
- * and those two features *are* the creature. Everything else is at minimum —
- * the torso is four boxes, each limb is three. 19 distinct sizes and 7 colours,
- * so a group still shares almost everything.
+ * Box budget: 56, far past the ~20 the standard asks you to justify. The
+ * justification is that this is a rare solitary set-piece (maxNearby 1), that
+ * every box is silhouette or tonal break rather than detail nobody sees, and
+ * that heavy size and colour reuse keeps it to 24 geometries and 11 colours —
+ * so it costs the shared caches almost nothing even though it is elaborate.
  */
 
-// Palette: bone, aged antler, charred body, with red only on the eyes.
-const BONE: Rgb = [216, 205, 180];
-const BONE_SHADE: Rgb = [168, 155, 130];
-const ANTLER: Rgb = [94, 64, 44];
-const ANTLER_TIP: Rgb = [88, 36, 30];
-const CHAR: Rgb = [44, 39, 37];
-const CHAR_DARK: Rgb = [27, 24, 23];
-const VOID: Rgb = [8, 7, 7];
-const EYE: Rgb = [255, 42, 28];
+// --- palette, read off the reference ---------------------------------------
+// Pallid flesh up top, darkening down the legs, with old blood as the accent.
+const FLESH: Rgb = [206, 184, 150];
+const FLESH_MID: Rgb = [176, 152, 120];
+const FLESH_LOW: Rgb = [138, 115, 90];
+const BONE: Rgb = [224, 212, 188];
+const BONE_MID: Rgb = [186, 172, 146];
+const ANTLER_AGED: Rgb = [150, 126, 98];
+const GORE: Rgb = [104, 38, 32];
+const GORE_DEEP: Rgb = [66, 24, 22];
+const LIMB_DARK: Rgb = [58, 44, 38];
+const LIMB_DARKER: Rgb = [34, 26, 23];
+const VOID: Rgb = [9, 7, 7];
+const EYE: Rgb = [255, 52, 34];
 
 /**
- * One antler: a beam that sweeps up and out through two segments, with tines
- * branching off it. Six boxes a side is the most expensive thing on this
- * creature and it is the right place to spend them — the rack is what makes
- * the silhouette unmistakable at distance, which the brief asks for by name.
- * Tips reach roughly +-1.5 blocks, so the rack spans about three blocks against
- * shoulders that are barely two thirds of one.
+ * One antler. Bone-pale at the base, darkening to blood at the tips, with six
+ * segments a side so the rack reads as branched rather than as a fork.
  */
 function antler(side: -1 | 1): ModelPart {
   const s = side;
   const tag = s < 0 ? 'L' : 'R';
   return {
     name: `antler${tag}`,
-    size: [2.5, 16, 2.5],
-    pivot: [s * 4.5, 8, 0],
+    size: [2.5, 15, 2.5],
+    pivot: [s * 3.2, 12, 1],
     origin: [-1.25, 0, -1.25],
-    color: ANTLER,
-    rotation: [0.16, 0, s * 0.5],
+    color: BONE_MID,
+    texture: 'wraith_bone_shade',
+    rotation: [0.1, 0, s * 0.34],
     children: [
-      // Lower tine, raking forward over the brow.
+      // Low tine, raking forward over the brow.
       {
         name: `antler${tag}_t1`,
-        size: [1.5, 9, 1.5],
-        pivot: [0, 5, 0],
-        origin: [-0.75, 0, -0.75],
-        color: ANTLER,
-        rotation: [-0.55, 0, s * 0.3],
+        size: [1.75, 9, 1.75],
+        pivot: [0, 4.5, 0],
+        origin: [-0.875, 0, -0.875],
+        color: BONE_MID,
+        texture: 'wraith_bone_shade',
+        rotation: [-0.58, 0, s * 0.28],
       },
-      // Upper tine, kicking back.
+      // Mid tine, kicking back.
       {
         name: `antler${tag}_t2`,
         size: [1.5, 8, 1.5],
-        pivot: [0, 11, 0],
+        pivot: [0, 10, 0],
         origin: [-0.75, 0, -0.75],
-        color: ANTLER,
-        rotation: [0.34, 0, s * 0.32],
+        color: ANTLER_AGED,
+        texture: 'wraith_antler',
+        rotation: [0.36, 0, s * 0.3],
       },
-      // The beam continues, widening the rack.
       {
         name: `antler${tag}_mid`,
         size: [2, 13, 2],
-        pivot: [0, 16, 0],
+        pivot: [0, 15, 0],
         origin: [-1, 0, -1],
-        color: ANTLER,
-        rotation: [-0.14, 0, s * 0.28],
+        color: ANTLER_AGED,
+        texture: 'wraith_antler',
+        rotation: [-0.14, 0, s * 0.26],
         children: [
           {
             name: `antler${tag}_t3`,
             size: [1.5, 8, 1.5],
             pivot: [0, 4, 0],
             origin: [-0.75, 0, -0.75],
-            color: ANTLER,
-            rotation: [-0.44, 0, s * 0.14],
+            color: ANTLER_AGED,
+            texture: 'wraith_antler',
+            rotation: [-0.46, 0, s * 0.14],
+          },
+          {
+            name: `antler${tag}_t4`,
+            size: [1.5, 7, 1.5],
+            pivot: [0, 9, 0],
+            origin: [-0.75, 0, -0.75],
+            color: GORE_DEEP,
+            texture: 'wraith_gore_deep',
+            rotation: [0.42, 0, s * 0.34],
           },
           {
             name: `antler${tag}_tip`,
             size: [1.5, 10, 1.5],
             pivot: [0, 13, 0],
             origin: [-0.75, 0, -0.75],
-            color: ANTLER_TIP,
-            rotation: [0.06, 0, s * 0.16],
+            color: GORE_DEEP,
+            texture: 'wraith_gore_deep',
+            rotation: [0.04, 0, s * 0.14],
           },
         ],
       },
@@ -96,35 +120,65 @@ function antler(side: -1 | 1): ModelPart {
   };
 }
 
-/** One arm: upper, forearm, hand, three long claws. */
+/**
+ * One arm. Thick at the shoulder, tapering through the forearm to a broad hand
+ * with four long claws, and hanging nearly to the ground. A gore plate runs
+ * down the upper arm so it is not one flat slab of colour.
+ */
 function arm(side: -1 | 1): ModelPart {
   const s = side;
   const tag = s < 0 ? 'L' : 'R';
-  const claw = (i: number, dx: number, rotZ: number): ModelPart => ({
+  const claw = (i: number, dx: number, len: number, rotZ: number): ModelPart => ({
     name: `finger${tag}${i}`,
-    size: [1.5, 11, 1.5],
-    pivot: [dx, -6, -0.5],
-    color: CHAR_DARK,
-    rotation: [0.12, 0, rotZ],
+    size: [2.25, len, 2.25],
+    pivot: [dx, -7, -1],
+    color: LIMB_DARKER,
+    texture: 'wraith_limb_dark',
+    rotation: [0.14, 0, rotZ],
   });
   return {
     name: `arm${tag}`,
-    size: [4, 22, 4],
-    pivot: [s * 7, 7, 0],
-    color: CHAR,
+    size: [6, 24, 5.5],
+    pivot: [s * 9, 5, 0.5],
+    color: FLESH_MID,
+    texture: 'wraith_flesh_mid',
     children: [
+      // Old blood weeping down the outside of the upper arm.
+      {
+        name: `armGore${tag}`,
+        size: [1.5, 15, 5.9],
+        pivot: [s * 2.4, -3, 0],
+        origin: [-0.75, 0, -3.2],
+        color: GORE_DEEP,
+        texture: 'wraith_gore_deep',
+      },
       {
         name: `forearm${tag}`,
-        size: [3.5, 20, 3.5],
-        pivot: [0, -22, 0],
-        color: CHAR,
+        size: [5, 23, 4.5],
+        pivot: [0, -24, 0],
+        color: FLESH_LOW,
+        texture: 'wraith_flesh_low',
         children: [
           {
+            name: `forearmGore${tag}`,
+            size: [1.25, 11, 4.7],
+            pivot: [s * 2, -4, 0],
+            origin: [-0.625, 0, -2.6],
+            color: GORE_DEEP,
+            texture: 'wraith_gore_deep',
+          },
+          {
             name: `hand${tag}`,
-            size: [5, 6, 3.5],
-            pivot: [0, -20, 0],
-            color: CHAR_DARK,
-            children: [claw(1, s * -1.5, 0.18 * s), claw(2, 0, 0), claw(3, s * 1.5, -0.14 * s)],
+            size: [7, 7, 5],
+            pivot: [0, -23, 0],
+            color: LIMB_DARK,
+            texture: 'wraith_limb',
+            children: [
+              claw(1, s * -2.4, 13, 0.3 * s),
+              claw(2, s * -0.8, 15, 0.1 * s),
+              claw(3, s * 0.8, 14, -0.08 * s),
+              claw(4, s * 2.4, 11, -0.26 * s),
+            ],
           },
         ],
       },
@@ -132,29 +186,31 @@ function arm(side: -1 | 1): ModelPart {
   };
 }
 
-/** One leg: thigh, shin, foot. */
+/** One leg: dark, heavy-footed, the least lit part of the creature. */
 function leg(side: -1 | 1): ModelPart {
   const s = side;
   const tag = s < 0 ? 'L' : 'R';
   return {
     name: `thigh${tag}`,
-    size: [5, 16, 5],
+    size: [5.5, 16, 5.5],
     pivot: [s * 3.5, 40, 0],
-    color: CHAR,
+    color: LIMB_DARK,
+    texture: 'wraith_limb',
     children: [
       {
         name: `shin${tag}`,
-        size: [4, 21, 4],
+        size: [4.5, 21, 4.5],
         pivot: [0, -16, 0],
-        color: CHAR,
+        color: LIMB_DARKER,
+        texture: 'wraith_limb_dark',
         children: [
           {
             name: `foot${tag}`,
-            size: [6, 3, 10],
+            size: [6.5, 3.5, 11],
             pivot: [0, -21, 0],
-            // Splayed forward, so it reads as a hoof-foot rather than a human one.
-            origin: [-3, -3, -7],
-            color: CHAR_DARK,
+            origin: [-3.25, -3.5, -8],
+            color: LIMB_DARKER,
+            texture: 'wraith_limb_dark',
           },
         ],
       },
@@ -162,9 +218,9 @@ function leg(side: -1 | 1): ModelPart {
   };
 }
 
-/** Fingers are posed by name; precomputed so `animate` never allocates. */
-const CLAWS_L = ['fingerL1', 'fingerL2', 'fingerL3'] as const;
-const CLAWS_R = ['fingerR1', 'fingerR2', 'fingerR3'] as const;
+/** Claws are posed by name; precomputed so `animate` never allocates. */
+const CLAWS_L = ['fingerL1', 'fingerL2', 'fingerL3', 'fingerL4'] as const;
+const CLAWS_R = ['fingerR1', 'fingerR2', 'fingerR3', 'fingerR4'] as const;
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
@@ -172,104 +228,174 @@ export const STAGWRAITH: CreatureDefinition = {
   name: 'voxelia:stagwraith',
   displayName: 'Stagwraith',
 
-  // ~5 blocks to the crown of the skull, antlers above that: 2.8x the player.
-  width: 1.0,
+  width: 1.1,
   height: 5.0,
   eyeHeight: 4.7,
 
   maxHealth: 60,
-  moveSpeed: 5.4, // long legs — it runs down a sprinting player
+  moveSpeed: 5.4,
   jumpSpeed: 9,
-  stepHeight: 1.2, // strides over terrain a smaller creature would hop
+  stepHeight: 1.2,
 
   attackDamage: 7,
   attackCooldown: 1.6,
-  attackRange: 2.6, // those arms reach much further than its hitbox suggests
+  attackRange: 2.8,
 
   model: [
     leg(-1),
     leg(1),
     {
       name: 'hips',
-      size: [8, 5, 6],
+      size: [9, 6, 6.5],
       pivot: [0, 45, 0],
-      origin: [-4, 0, -3],
-      color: CHAR,
+      origin: [-4.5, 0, -3.25],
+      color: FLESH_LOW,
+      texture: 'wraith_flesh_low',
       // The permanent stoop. Everything above the hips inherits it.
-      rotation: [-0.16, 0, 0],
+      rotation: [-0.2, 0, 0],
       children: [
+        // Torso in two slabs: a lower waist and an upper ribcage, each a
+        // different tone. One tall box of one colour is what reads as a crate.
         {
           name: 'torso',
-          size: [6, 15, 4.5],
-          pivot: [0, 5, 0],
-          origin: [-3, 0, -2.25],
-          color: CHAR,
+          size: [7, 9, 5],
+          pivot: [0, 6, 0],
+          origin: [-3.5, 0, -2.5],
+          color: FLESH_MID,
+          texture: 'wraith_flesh_mid',
           children: [
             {
-              name: 'chest',
-              size: [11, 10, 6],
-              pivot: [0, 15, 0],
-              origin: [-5.5, 0, -3],
-              color: CHAR,
+              name: 'ribs',
+              size: [9, 10, 5.5],
+              pivot: [0, 9, 0],
+              origin: [-4.5, 0, -2.75],
+              color: FLESH,
+              texture: 'wraith_flesh',
               children: [
-                arm(-1),
-                arm(1),
+                // Blood weeping down the sternum.
                 {
-                  name: 'neck',
-                  size: [4, 4, 4],
-                  pivot: [0, 10, -0.5],
-                  origin: [-2, 0, -2],
-                  color: BONE_SHADE,
+                  name: 'sternumGore',
+                  size: [4.5, 16, 1],
+                  pivot: [0, -6, -2.8],
+                  origin: [-2.25, 0, -1],
+                  color: GORE,
+                  texture: 'wraith_gore',
+                },
+                {
+                  name: 'chest',
+                  size: [11, 8, 6],
+                  pivot: [0, 10, 0],
+                  origin: [-5.5, 0, -3],
+                  color: FLESH,
+                  texture: 'wraith_flesh',
                   children: [
+                    // Hunched shoulder mass — the cowl of the reference.
                     {
-                      name: 'skull',
-                      size: [10, 10, 9],
-                      pivot: [0, 4, 0],
-                      origin: [-5, 0, -4.5],
-                      color: BONE,
+                      name: 'shoulders',
+                      size: [13.5, 5, 6.5],
+                      pivot: [0, 8, 0.5],
+                      origin: [-6.75, 0, -3.25],
+                      color: FLESH_LOW,
+                      texture: 'wraith_flesh_low',
+                      rotation: [0.16, 0, 0],
+                    },
+                    arm(-1),
+                    arm(1),
+                    {
+                      name: 'neck',
+                      size: [5, 6, 5],
+                      pivot: [0, 7.5, -2],
+                      origin: [-2.25, 0, -2.25],
+                      color: BONE_MID,
+                      texture: 'wraith_bone_shade',
+                      // Juts forward, so the head hangs ahead of the shoulders.
+                      rotation: [0.42, 0, 0],
                       children: [
-                        // Elongated muzzle — the deer read.
                         {
-                          name: 'snout',
-                          size: [6, 6, 12],
-                          pivot: [0, 1.5, -4.5],
-                          origin: [-3, 0, -12],
+                          name: 'skull',
+                          size: [12, 12, 11],
+                          pivot: [0, 6, 0],
+                          origin: [-6, 0, -5.5],
                           color: BONE,
+                          texture: 'wraith_bone',
+                          children: [
+                            // Brow ridge, shading the sockets beneath it.
+                            {
+                              name: 'brow',
+                              size: [12.5, 3, 2],
+                              pivot: [0, 8, -5.5],
+                              origin: [-6.25, 0, -2],
+                              color: BONE_MID,
+                              texture: 'wraith_bone_shade',
+                            },
+                            // Deep sockets. The eyes sit INSIDE these, which is
+                            // what makes the face read as a skull.
+                            {
+                              name: 'socketL',
+                              size: [3.5, 4, 2],
+                              pivot: [-4.3, 5, -5.3],
+                              origin: [-1.75, 0, -2],
+                              color: VOID,
+                              children: [
+                                {
+                                  name: 'eyeL',
+                                  size: [2, 2, 0.9],
+                                  pivot: [0, 1, -1.9],
+                                  origin: [-1, 0, -0.9],
+                                  color: EYE,
+                                  emissive: true,
+                                },
+                              ],
+                            },
+                            {
+                              name: 'socketR',
+                              size: [3.5, 4, 2],
+                              pivot: [4.3, 5, -5.3],
+                              origin: [-1.75, 0, -2],
+                              color: VOID,
+                              children: [
+                                {
+                                  name: 'eyeR',
+                                  size: [2, 2, 0.9],
+                                  pivot: [0, 1, -1.9],
+                                  origin: [-1, 0, -0.9],
+                                  color: EYE,
+                                  emissive: true,
+                                },
+                              ],
+                            },
+                            // Long muzzle in two tones.
+                            {
+                              name: 'snout',
+                              size: [6, 7, 14],
+                              pivot: [0, 1.5, -5.5],
+                              origin: [-3, 0, -14],
+                              color: BONE,
+                              texture: 'wraith_bone',
+                              children: [
+                                // The black gash running down the face — the
+                                // reference's defining feature after the rack.
+                                {
+                                  name: 'gash',
+                                  size: [2.5, 5.5, 12],
+                                  pivot: [0, 1.2, -1],
+                                  origin: [-1.25, 0, -12],
+                                  color: VOID,
+                                },
+                              ],
+                            },
+                            {
+                              name: 'jaw',
+                              size: [6.5, 3.5, 14],
+                              pivot: [0, 1.5, -5.5],
+                              origin: [-3.25, -3.5, -14],
+                              color: BONE_MID,
+                              texture: 'wraith_bone_shade',
+                            },
+                            antler(-1),
+                            antler(1),
+                          ],
                         },
-                        {
-                          name: 'jaw',
-                          size: [5, 3, 12],
-                          pivot: [0, 1.5, -4.5],
-                          origin: [-2.5, -3, -12],
-                          color: BONE_SHADE,
-                        },
-                        // The void where a mouth should be.
-                        {
-                          name: 'maw',
-                          size: [5, 5, 1],
-                          pivot: [0, 1.6, -4.6],
-                          origin: [-2.5, 0, -1],
-                          color: VOID,
-                        },
-                        // Sunk into the sockets, proud of the face so they never z-fight.
-                        {
-                          name: 'eyeL',
-                          size: [1.75, 1.75, 1],
-                          pivot: [-2.8, 6, -4.65],
-                          origin: [-0.875, 0, -1],
-                          color: EYE,
-                          emissive: true,
-                        },
-                        {
-                          name: 'eyeR',
-                          size: [1.75, 1.75, 1],
-                          pivot: [2.8, 6, -4.65],
-                          origin: [-0.875, 0, -1],
-                          color: EYE,
-                          emissive: true,
-                        },
-                        antler(-1),
-                        antler(1),
                       ],
                     },
                   ],
@@ -292,16 +418,17 @@ export const STAGWRAITH: CreatureDefinition = {
       const d = ctx.deathProgress;
       const fall = d * d; // accelerating, so it drops rather than settles
       pose('hips').rotX = -fall * 1.45;
-      pose('torso').rotX = -fall * 0.35;
-      pose('skull').rotX = fall * 0.8; // head lolls back as the body goes down
+      pose('torso').rotX = -fall * 0.3;
+      pose('neck').rotX = -fall * 0.5;
+      pose('skull').rotX = fall * 0.9; // head lolls as the body goes down
       pose('thighL').rotX = fall * 1.15;
       pose('thighR').rotX = fall * 0.95; // asymmetric: a collapse, not a bow
       pose('shinL').rotX = -fall * 1.7;
       pose('shinR').rotX = -fall * 1.5;
-      pose('armL').rotX = fall * 0.9;
-      pose('armR').rotX = fall * 1.1;
-      pose('armL').rotZ = fall * 0.5;
-      pose('armR').rotZ = -fall * 0.5;
+      pose('armL').rotX = -fall * 0.7;
+      pose('armR').rotX = -fall * 0.9;
+      pose('armL').rotZ = fall * 0.55;
+      pose('armR').rotZ = -fall * 0.55;
       return;
     }
 
@@ -318,44 +445,46 @@ export const STAGWRAITH: CreatureDefinition = {
     pose('shinL').rotX = -Math.max(0, -gait) * (0.75 + running * 0.5) * moving;
     pose('shinR').rotX = -Math.max(0, gait) * (0.75 + running * 0.5) * moving;
 
-    // --- IDLE: slow sway and a head that scans ----------------------------
+    // --- IDLE: slow sway, and a head that hangs and scans ------------------
     const breath = Math.sin(t * 0.55);
     pose('hips').rotZ = breath * 0.022;
-    pose('torso').rotX = Math.sin(t * 0.43) * 0.028 - running * 0.22; // deeper stoop at a run
-    pose('chest').rotY = Math.sin(t * 0.37) * 0.05;
+    pose('torso').rotX = Math.sin(t * 0.43) * 0.028 - running * 0.2;
+    pose('ribs').rotY = Math.sin(t * 0.37) * 0.04;
+    pose('neck').rotX = -running * 0.22 + breath * 0.03;
     pose('skull').rotY = Math.sin(t * 0.29) * 0.14 * (1 - moving);
-    pose('skull').rotX = ctx.headPitch * 0.45 + breath * 0.02;
+    pose('skull').rotX = ctx.headPitch * 0.4 + breath * 0.02;
+    pose('jaw').rotX = -0.06 - Math.max(0, breath) * 0.12 - ctx.attack * 0.5; // maw gapes
 
-    // --- ARMS: hang, counter-swing, then thrust ---------------------------
+    // --- ARMS: hang heavy, counter-swing, then thrust ---------------------
     const a = ctx.attack;
-    const swing = -gait * (0.3 + running * 0.35) * moving;
-    // Both arms drive forward together — the lunge in the reference.
-    // +rotX on a hanging limb reaches forward; negative would throw them skyward.
+    const swing = -gait * (0.28 + running * 0.3) * moving;
+    // +rotX reaches forward on a hanging limb; see PartPose for the convention.
     pose('armL').rotX = lerp(swing, 1.85, a);
     pose('armR').rotX = lerp(-swing, 1.85, a);
-    pose('armL').rotZ = lerp(0.07, 0.3, a);
-    pose('armR').rotZ = lerp(-0.07, -0.3, a);
-    pose('forearmL').rotX = lerp(-0.16, 0.34, a);
-    pose('forearmR').rotX = lerp(-0.16, 0.34, a);
+    pose('armL').rotZ = lerp(0.1, 0.32, a);
+    pose('armR').rotZ = lerp(-0.1, -0.32, a);
+    pose('forearmL').rotX = lerp(-0.2, 0.34, a);
+    pose('forearmR').rotX = lerp(-0.2, 0.34, a);
     pose('hips').rotX = -a * 0.22; // leans into the swing
 
     // Claws curl idly and splay wide on the strike.
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       const twitch = Math.sin(t * 1.6 + i * 1.1) * 0.07;
-      const spread = a * 0.42;
-      pose(CLAWS_L[i]).rotX = twitch + a * 0.25;
-      pose(CLAWS_R[i]).rotX = -twitch + a * 0.25;
-      pose(CLAWS_L[i]).rotZ = (i - 1) * spread;
-      pose(CLAWS_R[i]).rotZ = (i - 1) * -spread;
+      const spread = a * 0.4;
+      pose(CLAWS_L[i]).rotX = twitch + a * 0.3;
+      pose(CLAWS_R[i]).rotX = -twitch + a * 0.3;
+      pose(CLAWS_L[i]).rotZ = (i - 1.5) * spread;
+      pose(CLAWS_R[i]).rotZ = (i - 1.5) * -spread;
     }
 
     // --- HURT: a short recoil --------------------------------------------
     if (ctx.hurt > 0) {
       const h = ctx.hurt;
       pose('hips').rotX += h * 0.3;
+      pose('neck').rotX += h * 0.3;
       pose('skull').rotX -= h * 0.45;
-      pose('armL').rotX += h * 0.5;
-      pose('armR').rotX += h * 0.5;
+      pose('armL').rotX -= h * 0.5;
+      pose('armR').rotX -= h * 0.5;
     }
   },
 
@@ -365,15 +494,15 @@ export const STAGWRAITH: CreatureDefinition = {
       sightRange: 40,
       loseRange: 56,
       chaseThrottle: 1,
-      wanderThrottle: 0.22, // drifts slowly when it has not found you
-      memorySeconds: 14, // a very long memory: it hunts where you were
+      wanderThrottle: 0.22,
+      memorySeconds: 14,
     }),
 
   spawn: {
     biomes: ['voxelia:forest', 'voxelia:taiga'],
     maxLight: 4,
     minY: 40,
-    minPlayerDistance: 34, // never materialises in view
+    minPlayerDistance: 34,
     maxPlayerDistance: 80,
     weight: 2, // rare — it is an event, not a population
     maxNearby: 1,

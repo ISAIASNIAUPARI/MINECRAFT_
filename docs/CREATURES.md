@@ -77,7 +77,15 @@ Optional per part:
 | `emissive: true` | glows, ignores scene lighting — use for eyes |
 | `opacity: 0.5` | semi-transparent — wisps, ghosts |
 | `rotation: [x,y,z]` | resting rotation in radians, before animation |
-| `texture: 'key'` | atlas texture instead of a flat colour |
+| `texture: 'key'` | **speckled atlas skin instead of a flat colour** |
+
+> **Use `texture` on anything large.** A big box of one flat colour is what makes
+> a model read as a stack of crates — it was the single biggest complaint on the
+> first creature. Creature skins live in `PALETTE` in `TextureAtlas.ts` under a
+> `<creature>_` prefix and are painted with a heavier grain than block faces.
+> Add yours there, list the key, and set `texture` on every sizeable part;
+> keep `color` too, as the fallback when the atlas is unavailable. Leave small
+> accents (eyes, sockets) flat — grain on a 2-unit box is just noise.
 
 ---
 

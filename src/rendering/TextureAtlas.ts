@@ -37,7 +37,23 @@ const PALETTE: Record<string, [number, number, number]> = {
   furnace_side: [104, 104, 108],
   furnace_top: [96, 96, 100],
   torch: [230, 190, 90],
+
+  // Creature skins. Painted by the same speckled tile routine as blocks, which
+  // is what stops a box model reading as a flat-shaded crate.
+  wraith_bone: [224, 212, 188],
+  wraith_bone_shade: [186, 172, 146],
+  wraith_flesh: [206, 184, 150],
+  wraith_flesh_mid: [176, 152, 120],
+  wraith_flesh_low: [138, 115, 90],
+  wraith_antler: [150, 126, 98],
+  wraith_gore: [104, 38, 32],
+  wraith_gore_deep: [66, 24, 22],
+  wraith_limb: [58, 44, 38],
+  wraith_limb_dark: [34, 26, 23],
 };
+
+/** Texture keys that belong to creatures rather than blocks. */
+export const CREATURE_TEXTURE_KEYS = Object.keys(PALETTE).filter((k) => k.startsWith('wraith_'));
 
 function hashKey(key: string): number {
   let h = 0;
@@ -77,7 +93,8 @@ function paintTile(ctx: CanvasRenderingContext2D, x0: number, y0: number, key: s
   for (let py = 0; py < TILE; py++) {
     for (let px = 0; px < TILE; px++) {
       const n = (hashInts(seed, px, py) & 0xff) / 255 - 0.5;
-      const k = 1 + n * 0.22;
+      // Organic surfaces get a stronger grain than mineral ones.
+      const k = 1 + n * (key.startsWith('wraith_') ? 0.42 : 0.22);
       ctx.fillStyle = `rgb(${clamp8(r * k)},${clamp8(g * k)},${clamp8(b * k)})`;
       ctx.fillRect(x0 + px, y0 + py, 1, 1);
     }

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { ITextureAtlas } from '../rendering/types';
 import type { Entity } from './Entity';
 import { CORPSE_SECONDS, MODEL_UNIT, type AnimationContext, type IEntity, type ModelPart, type PartPose, type Rgb } from './types';
 
@@ -49,9 +50,24 @@ export class EntityRenderer {
   private readonly geometries = new Map<string, THREE.BoxGeometry>();
   private readonly materials = new Map<string, THREE.MeshLambertMaterial>();
 
-  constructor(scene: THREE.Scene) {
+  /** Shared atlas texture, built once from the atlas canvas. */
+  private readonly atlasMap: THREE.CanvasTexture | null;
+
+  constructor(scene: THREE.Scene, private readonly atlas?: ITextureAtlas) {
     this.container.name = 'entities';
     scene.add(this.container);
+
+    if (atlas) {
+      const map = new THREE.CanvasTexture(atlas.image as HTMLCanvasElement);
+      map.magFilter = THREE.NearestFilter;
+      map.minFilter = THREE.NearestMipmapNearestFilter;
+      map.generateMipmaps = true;
+      map.colorSpace = THREE.SRGBColorSpace;
+      map.needsUpdate = true;
+      this.atlasMap = map;
+    } else {
+      this.atlasMap = null;
+    }
   }
 
   /** Create or update views so they match `entities` exactly. */
@@ -154,16 +170,41 @@ export class EntityRenderer {
     for (const m of this.materials.values()) m.dispose();
     this.geometries.clear();
     this.materials.clear();
+    this.atlasMap?.dispose();
     this.container.parent?.remove(this.container);
   }
 
   // --- shared resources --------------------------------------------------
 
-  private geometryFor(sx: number, sy: number, sz: number): THREE.BoxGeometry {
-    const key = `${sx}x${sy}x${sz}`;
+  /**
+   * A box of this size, with its UVs remapped into `rect` when the part is
+   * textured. Keyed by both, so two parts sharing a size and a skin share one
+   * geometry while a differently-skinned box of the same size gets its own.
+   */
+  private geometryFor(
+    sx: number,
+    sy: number,
+    sz: number,
+    rect: readonly [number, number, number, number] | null,
+  ): THREE.BoxGeometry {
+    const key = rect ? `${sx}x${sy}x${sz}@${rect.join(',')}` : `${sx}x${sy}x${sz}`;
     let g = this.geometries.get(key);
     if (!g) {
       g = new THREE.BoxGeometry(sx * MODEL_UNIT, sy * MODEL_UNIT, sz * MODEL_UNIT);
+      if (rect) {
+        // BoxGeometry UVs run 0..1 on every face; squeeze them into the tile.
+        //
+        // The atlas reports its rect in image space, top-down, while a
+        // CanvasTexture uploads with flipY, so a tile covering image rows
+        // [v0, v1] lands at UV rows [1 - v1, 1 - v0]. Skipping that flip
+        // samples a completely different tile, not a mirrored one.
+        const [u0, v0, u1, v1] = rect;
+        const uv = g.attributes.uv;
+        for (let i = 0; i < uv.count; i++) {
+          uv.setXY(i, u0 + uv.getX(i) * (u1 - u0), 1 - v1 + uv.getY(i) * (v1 - v0));
+        }
+        uv.needsUpdate = true;
+      }
       this.geometries.set(key, g);
     }
     return g;
@@ -173,12 +214,18 @@ export class EntityRenderer {
     color: Rgb,
     opacity: number,
     emissive: Rgb | null,
+    textured: boolean,
   ): THREE.MeshLambertMaterial {
-    const key = `${color.join(',')}|${opacity}|${emissive ? emissive.join(',') : '-'}`;
+    const key = `${color.join(',')}|${opacity}|${emissive ? emissive.join(',') : '-'}|${textured ? 'tex' : 'flat'}`;
     let m = this.materials.get(key);
     if (!m) {
       m = new THREE.MeshLambertMaterial({
-        color: new THREE.Color(color[0] / 255, color[1] / 255, color[2] / 255),
+        // A textured part tints white, so the atlas pixels show through as
+        // painted rather than being multiplied down by a second colour.
+        color: textured
+          ? new THREE.Color(1, 1, 1)
+          : new THREE.Color(color[0] / 255, color[1] / 255, color[2] / 255),
+        map: textured ? this.atlasMap : null,
         transparent: opacity < 1,
         opacity,
       });
@@ -217,12 +264,17 @@ export class EntityRenderer {
     if (sx > 0 && sy > 0 && sz > 0) {
       const color = part.color ?? ([170, 170, 170] as const);
       const opacity = part.opacity ?? 1;
-      const base = this.materialFor(color, opacity, part.emissive ? color : null);
+      // Fall back to the flat colour when the atlas has no such skin, so a
+      // missing texture key degrades instead of painting magenta.
+      const textured = !!(part.texture && this.atlas?.has(part.texture) && this.atlasMap);
+      const rect = textured ? this.atlas!.getUV(part.texture!) : null;
+
+      const base = this.materialFor(color, opacity, part.emissive ? color : null, textured);
       // An emissive part keeps glowing its own colour while flashing, so eyes
       // do not turn into dull red squares exactly when they matter most.
-      const hurt = this.materialFor(color, opacity, part.emissive ? color : FLASH_EMISSIVE);
+      const hurt = this.materialFor(color, opacity, part.emissive ? color : FLASH_EMISSIVE, textured);
 
-      const mesh = new THREE.Mesh(this.geometryFor(sx, sy, sz), base);
+      const mesh = new THREE.Mesh(this.geometryFor(sx, sy, sz, rect), base);
       view.skins.push({ mesh, base, hurt });
 
       // `origin` is the box's corner relative to the pivot; default centres it
