@@ -80,6 +80,12 @@ export const HOLLOW: CreatureDefinition = {
     pose('armR').rotX = -hang - reach * 1.5;
     pose('armL').rotZ = 0.06 + reach * 0.15;
     pose('armR').rotZ = -0.06 - reach * 0.15;
+
+    // Flinch: recoil the head and hunch the body on a hit.
+    if (ctx.hurt > 0) {
+      pose('head').rotX -= ctx.hurt * 0.35;
+      pose('body').rotX = ctx.hurt * 0.12;
+    }
   },
 
   brain: (rng) =>

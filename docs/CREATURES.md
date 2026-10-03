@@ -1,5 +1,9 @@
 # Adding a creature
 
+> The binding rules for every creature live in
+> [`CREATURE_STANDARD.md`](./CREATURE_STANDARD.md). This page is the how-to.
+
+
 A creature is **one file**. The engine already handles spawning, gravity,
 collision, stepping, knockback, damage, death, drops, animation and rendering —
 a creature definition never touches any of it.

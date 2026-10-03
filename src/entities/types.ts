@@ -72,6 +72,10 @@ export interface AnimationContext {
   airborne: boolean;
   /** 0 while idle, ramping to 1 over an attack's wind-up and swing. */
   attack: number;
+  /** 1 at the instant of a hit, decaying to 0. Drives a flinch. */
+  hurt: number;
+  /** True once killed — drive a death pose from here. */
+  dead: boolean;
   /** Per-entity constant in 0..1, so clones of one creature don't move in lockstep. */
   phase: number;
 }
@@ -198,6 +202,12 @@ export interface CreatureDefinition {
   model: readonly ModelPart[];
   /** Per-frame pose. Omitted = a static model. */
   animate?: Animator;
+  /**
+   * Set when {@link animate} poses its own death from `ctx.dead`. Otherwise the
+   * renderer tips the corpse over, so a kill always reads even for a creature
+   * that has no death animation.
+   */
+  animatesDeath?: boolean;
   /** Builds a fresh brain per spawned instance. */
   brain: (rng: Rng) => Brain;
   spawn?: SpawnRule;

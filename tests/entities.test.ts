@@ -230,6 +230,8 @@ describe('creature models', () => {
         headPitch: 0.2,
         airborne: false,
         attack: 0,
+        hurt: 0,
+        dead: false,
         phase: 0.4,
       }),
     ).not.toThrow();
@@ -282,3 +284,35 @@ function blankPose() {
 // `createRng` is exercised indirectly above; this keeps the import meaningful
 // if the determinism test is ever changed to seed brains by hand.
 void createRng;
+
+describe('renderer resource sharing', () => {
+  it('shares geometry and materials across every instance', async () => {
+    const THREE = await import('three');
+    const { EntityRenderer } = await import('../src/entities/EntityRenderer');
+
+    const scene = new THREE.Scene();
+    const renderer = new EntityRenderer(scene);
+    const m = makeManager();
+
+    for (let i = 0; i < 25; i++) m.spawn('voxelia:hollow', { x: i * 3, y: 1, z: 0 });
+    renderer.sync(m.all);
+
+    const stats = renderer.stats;
+    expect(stats.views).toBe(25);
+
+    // The Hollow has 8 boxes across 4 distinct sizes and 3 distinct colours.
+    // Without sharing this would be 25*8 = 200 of each.
+    expect(stats.geometries).toBeLessThanOrEqual(8);
+    expect(stats.materials).toBeLessThanOrEqual(8);
+
+    // Despawning must not drop the shared caches other entities still use.
+    const first = m.all[0].id;
+    m.despawn(first);
+    renderer.sync(m.all);
+    expect(renderer.stats.views).toBe(24);
+    expect(renderer.stats.geometries).toBe(stats.geometries);
+
+    renderer.dispose();
+    expect(renderer.stats.geometries).toBe(0);
+  });
+});
