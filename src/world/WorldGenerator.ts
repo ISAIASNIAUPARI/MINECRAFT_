@@ -1,4 +1,4 @@
-import { CHUNK_SIZE, SEA_LEVEL, WORLD_MIN_Y } from '../core/constants';
+import { CHUNK_SIZE, SEA_LEVEL, WORLD_MAX_Y, WORLD_MIN_Y } from '../core/constants';
 import { chunkToWorldOrigin } from '../core/math';
 import { createRng, hashInts, type Rng } from '../core/rng';
 import type { BlockId, ChunkPos } from '../core/types';
@@ -30,6 +30,7 @@ export class WorldGenerator implements IWorldGenerator {
   private readonly humidity: PerlinNoise2D;
   private readonly caves: PerlinNoise3D;
   private readonly ids: Record<string, BlockId>;
+  private readonly woodCache = new Map<string, { log: BlockId; leaves: BlockId } | null>();
 
   constructor(
     seed: number,
@@ -51,8 +52,6 @@ export class WorldGenerator implements IWorldGenerator {
       grass: id('voxelia:grass_block'),
       sand: id('voxelia:sand'),
       water: id('voxelia:water'),
-      log: id('voxelia:oak_log'),
-      leaves: id('voxelia:oak_leaves'),
       coal: id('voxelia:coal_ore'),
       iron: id('voxelia:iron_ore'),
     };
@@ -136,15 +135,31 @@ export class WorldGenerator implements IWorldGenerator {
     }
   }
 
+  /** Resolve (and cache) the log/leaf block ids for a timber species. */
+  private woodIds(species: string): { log: BlockId; leaves: BlockId } | null {
+    const cached = this.woodCache.get(species);
+    if (cached !== undefined) return cached;
+    const log = this.blocks.byName(`voxelia:${species}_log`)?.numericId;
+    const leaves = this.blocks.byName(`voxelia:${species}_leaves`)?.numericId;
+    const entry = log !== undefined && leaves !== undefined ? { log, leaves } : null;
+    this.woodCache.set(species, entry);
+    return entry;
+  }
+
   decorate(pos: ChunkPos, edit: DecorationEditor): void {
     const ox = chunkToWorldOrigin(pos.cx);
     const oz = chunkToWorldOrigin(pos.cz);
     const rng: Rng = edit.rng;
-    const { log, leaves } = this.ids;
 
     const biome = this.biomeAt(ox + 8, oz + 8);
     const treeConfig = biome.decorators.find((d) => d.type === 'tree');
     if (!treeConfig) return;
+
+    // `kind` is the timber species id, e.g. 'amberwood' -> voxelia:amberwood_log.
+    const species = String(treeConfig.params?.kind ?? 'amberwood');
+    const wood = this.woodIds(species);
+    if (wood === null) return;
+    const { log, leaves } = wood;
 
     const attempts = treeConfig.attemptsPerChunk;
     for (let i = 0; i < attempts; i++) {
@@ -154,7 +169,7 @@ export class WorldGenerator implements IWorldGenerator {
       const wz = oz + lz;
       // Find ground.
       let gy = -1;
-      for (let y = 120; y > 2; y--) {
+      for (let y = WORLD_MAX_Y - 8; y > 2; y--) {
         const b = edit.get(wx, y, wz);
         if (b !== 0) {
           gy = y;

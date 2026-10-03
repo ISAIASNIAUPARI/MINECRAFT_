@@ -23,6 +23,7 @@ const PALETTE: Record<string, [number, number, number]> = {
   gravel: [130, 124, 122],
   log_top: [162, 130, 86],
   log_side: [110, 84, 52],
+  log: [110, 84, 52],
   planks: [176, 140, 92],
   leaves: [74, 140, 66],
   sapling: [90, 150, 70],
@@ -44,8 +45,30 @@ function hashKey(key: string): number {
   return h >>> 0;
 }
 
+/**
+ * Resolve a texture key against {@link PALETTE}.
+ *
+ * Block textures are species-qualified (`amberwood_leaves`, `pinewood_log_top`),
+ * while the palette is keyed by material (`leaves`, `log_top`). Fall back to the
+ * longest palette key that the texture name ends with, so every timber species
+ * paints as wood instead of a random hashed colour.
+ */
+function paletteFor(key: string): [number, number, number] {
+  const exact = PALETTE[key];
+  if (exact) return exact;
+  let best: [number, number, number] | null = null;
+  let bestLen = 0;
+  for (const name of Object.keys(PALETTE)) {
+    if (name.length > bestLen && (key === name || key.endsWith(`_${name}`))) {
+      best = PALETTE[name];
+      bestLen = name.length;
+    }
+  }
+  return best ?? hashedColor(key);
+}
+
 function paintTile(ctx: CanvasRenderingContext2D, x0: number, y0: number, key: string): void {
-  const [r, g, b] = PALETTE[key] ?? hashedColor(key);
+  const [r, g, b] = paletteFor(key);
   const seed = hashKey(key);
   ctx.fillStyle = `rgb(${r},${g},${b})`;
   ctx.fillRect(x0, y0, TILE, TILE);

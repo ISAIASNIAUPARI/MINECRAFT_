@@ -19,16 +19,16 @@ describe('content pack', () => {
   });
 
   it('resolves the planks-from-log shapeless recipe', () => {
-    const log = content.items.byName('voxelia:oak_log')!;
+    const log = content.items.byName('voxelia:amberwood_log')!;
     const grid = [{ item: log.numericId, count: 1 }, null, null, null];
     const match = content.crafting.match('inventory', grid, 2, 2);
     expect(match).not.toBeNull();
-    expect(content.items.get(match!.result.item).name).toBe('voxelia:oak_planks');
+    expect(content.items.get(match!.result.item).name).toBe('voxelia:amberwood_planks');
     expect(match!.result.count).toBe(4);
   });
 
   it('resolves the shaped pickaxe recipe on a 3x3 table', () => {
-    const planks = content.items.byName('voxelia:oak_planks')!.numericId;
+    const planks = content.items.byName('voxelia:amberwood_planks')!.numericId;
     const stick = content.items.byName('voxelia:stick')!.numericId;
     const P = { item: planks, count: 1 };
     const S = { item: stick, count: 1 };

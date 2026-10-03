@@ -14,9 +14,15 @@ export const CHUNK_SIZE_MASK = CHUNK_SIZE - 1;
 export const CHUNK_AREA = CHUNK_SIZE * CHUNK_SIZE;
 export const CHUNK_VOLUME = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
-/** Vertical world bounds in blocks: valid Y is `[WORLD_MIN_Y, WORLD_MAX_Y)`. */
+/**
+ * Vertical world bounds in blocks: valid Y is `[WORLD_MIN_Y, WORLD_MAX_Y)`.
+ *
+ * 128 gives 8 chunks per column. Measured terrain across seeds spans y=38..95
+ * and the tallest tree tops out near y=102, so this leaves real headroom while
+ * halving chunk count, meshing work and (later) entity pathfinding volume.
+ */
 export const WORLD_MIN_Y = 0;
-export const WORLD_MAX_Y = 256;
+export const WORLD_MAX_Y = 128;
 export const WORLD_HEIGHT = WORLD_MAX_Y - WORLD_MIN_Y;
 /** Number of stacked chunks in a world column. */
 export const WORLD_COLUMN_CHUNKS = WORLD_HEIGHT / CHUNK_SIZE;

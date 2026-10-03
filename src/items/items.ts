@@ -18,6 +18,9 @@ export function registerCoreItems(items: IItemRegistry, blocks: IBlockRegistry):
       texture: `block/${block.name.split(':').pop()}`,
       placesBlock: block.numericId,
       maxStackSize: 64,
+      // Block items inherit the block's tags so tag-driven recipes
+      // (`voxelia:planks`, `voxelia:logs`, ...) match any species.
+      tags: block.tags,
     });
   }
 

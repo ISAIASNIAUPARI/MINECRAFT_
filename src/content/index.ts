@@ -28,10 +28,12 @@ export interface GameContent {
   crafting: ICraftingResolver;
 }
 
-const TAG_MEMBERS: Record<string, string[]> = {
-  'voxelia:planks': ['voxelia:oak_planks'],
-  'voxelia:logs': ['voxelia:oak_log'],
-};
+/**
+ * Extra tag memberships that are not already carried by an item definition.
+ * Block items inherit their block's tags, so this stays empty in the core pack;
+ * Phase 4 mods use it to add their items to existing tags.
+ */
+const TAG_MEMBERS: Record<string, string[]> = {};
 
 export function createGameContent(): GameContent {
   const blocks = new BlockRegistry();

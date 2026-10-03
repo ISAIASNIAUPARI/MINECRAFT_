@@ -1,30 +1,41 @@
 import type { Recipe } from './types';
 
 /**
- * SKELETON recipe set. Phase 1 (Agent: content) adds the full tool/armor tiers,
- * furnace smelting recipes, and the recipe book data.
+ * Core recipe set. Wood-bearing recipes are tag-driven (`voxelia:planks`) so
+ * every timber species works in them; only the log -> planks conversion is
+ * per-species, because its result has to name a concrete plank.
  */
+
+/** Timber species that ship in the core content pack. */
+export const CORE_WOODS = ['amberwood', 'pinewood', 'silverbark'] as const;
+
+const PLANKS = { tag: 'voxelia:planks' } as const;
+const STICK = 'voxelia:stick';
+
+/** One shapeless `log -> 4 planks` recipe per species. */
+const PLANK_RECIPES: Recipe[] = CORE_WOODS.map((wood) => ({
+  type: 'shapeless',
+  id: `voxelia:${wood}_planks_from_log`,
+  station: 'inventory',
+  ingredients: [{ tag: `voxelia:${wood}_logs` }],
+  result: { item: `voxelia:${wood}_planks`, count: 4 },
+}));
+
 export const CORE_RECIPES: Recipe[] = [
-  {
-    type: 'shapeless',
-    id: 'voxelia:planks_from_log',
-    station: 'inventory',
-    ingredients: ['voxelia:oak_log'],
-    result: { item: 'voxelia:oak_planks', count: 4 },
-  },
+  ...PLANK_RECIPES,
   {
     type: 'shapeless',
     id: 'voxelia:sticks',
     station: 'inventory',
-    ingredients: ['voxelia:oak_planks', 'voxelia:oak_planks'],
-    result: { item: 'voxelia:stick', count: 4 },
+    ingredients: [PLANKS, PLANKS],
+    result: { item: STICK, count: 4 },
   },
   {
     type: 'shaped',
     id: 'voxelia:crafting_table',
     station: 'inventory',
     pattern: ['##', '##'],
-    key: { '#': 'voxelia:oak_planks' },
+    key: { '#': PLANKS },
     result: { item: 'voxelia:crafting_table', count: 1 },
   },
   {
@@ -32,7 +43,7 @@ export const CORE_RECIPES: Recipe[] = [
     id: 'voxelia:wood_pickaxe',
     station: 'crafting_table',
     pattern: ['###', ' | ', ' | '],
-    key: { '#': 'voxelia:oak_planks', '|': 'voxelia:stick' },
+    key: { '#': PLANKS, '|': STICK },
     result: { item: 'voxelia:wood_pickaxe', count: 1 },
   },
   {
@@ -40,7 +51,7 @@ export const CORE_RECIPES: Recipe[] = [
     id: 'voxelia:wood_axe',
     station: 'crafting_table',
     pattern: ['##', '#|', ' |'],
-    key: { '#': 'voxelia:oak_planks', '|': 'voxelia:stick' },
+    key: { '#': PLANKS, '|': STICK },
     result: { item: 'voxelia:wood_axe', count: 1 },
   },
   {
@@ -48,7 +59,7 @@ export const CORE_RECIPES: Recipe[] = [
     id: 'voxelia:wood_shovel',
     station: 'crafting_table',
     pattern: ['#', '|', '|'],
-    key: { '#': 'voxelia:oak_planks', '|': 'voxelia:stick' },
+    key: { '#': PLANKS, '|': STICK },
     result: { item: 'voxelia:wood_shovel', count: 1 },
   },
   {
@@ -56,7 +67,7 @@ export const CORE_RECIPES: Recipe[] = [
     id: 'voxelia:wood_sword',
     station: 'crafting_table',
     pattern: ['#', '#', '|'],
-    key: { '#': 'voxelia:oak_planks', '|': 'voxelia:stick' },
+    key: { '#': PLANKS, '|': STICK },
     result: { item: 'voxelia:wood_sword', count: 1 },
   },
   {
@@ -72,7 +83,7 @@ export const CORE_RECIPES: Recipe[] = [
     id: 'voxelia:torch',
     station: 'inventory',
     pattern: ['c', '|'],
-    key: { c: 'voxelia:coal', '|': 'voxelia:stick' },
+    key: { c: 'voxelia:coal', '|': STICK },
     result: { item: 'voxelia:torch', count: 4 },
   },
   {

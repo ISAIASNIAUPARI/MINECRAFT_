@@ -16,6 +16,30 @@ export type BlockRenderType =
   | 'cross' // 2 crossed quads (saplings, flowers, tall grass)
   | 'invisible'; // air, structural markers
 
+/**
+ * Non-full-cube shape hint for physics (collision box) and meshing (geometry).
+ * ADDED in Phase 1 (content) — purely additive; consumers that don't understand
+ * a shape may treat anything `solid` as a full box. The registry derives a
+ * sensible default from `renderType` when `shape` is omitted.
+ */
+export type BlockShape =
+  | 'full' // standard 1×1×1
+  | 'slab_bottom' // lower half
+  | 'slab_top' // upper half
+  | 'stairs' // L-profile (orientation is placement state, not registry data)
+  | 'fence' // central post + connecting arms, full height
+  | 'fence_gate'
+  | 'wall' // like fence, slightly wider
+  | 'pane' // thin cross (glass pane / bars)
+  | 'door'
+  | 'trapdoor'
+  | 'ladder' // thin panel on one face
+  | 'carpet' // 1/16 tall
+  | 'layer' // stackable layers (snow)
+  | 'cross' // decoration, no collision
+  | 'liquid'
+  | 'empty'; // no collision at all
+
 export type ToolCategory = 'pickaxe' | 'axe' | 'shovel' | 'hoe' | 'sword' | 'shears' | 'none';
 export type ToolTier = 'none' | 'wood' | 'stone' | 'copper' | 'iron' | 'gold' | 'diamond' | 'netherite';
 
@@ -51,8 +75,10 @@ export interface BlockDefinition {
 
   /** Fully occludes adjacent faces — drives mesher face-culling. */
   readonly opaque: boolean;
-  /** Has a full 1x1x1 collision box. Partial shapes come later. */
+  /** Has a collision box. See {@link shape} for the box profile. */
   readonly solid: boolean;
+  /** Collision / geometry profile. `full` for a standard block. */
+  readonly shape: BlockShape;
   /** Blocks movement of fluids/light entirely. */
   readonly fluidBlocking: boolean;
   /** 0..15 light level emitted. */
@@ -82,6 +108,7 @@ export interface BlockDefinitionInput {
   displayName?: string;
   textures?: string | Partial<Record<BlockFaceKey, string>>;
   renderType?: BlockRenderType;
+  shape?: BlockShape;
   tintIndex?: number | null;
   opaque?: boolean;
   solid?: boolean;
@@ -107,6 +134,8 @@ export interface IBlockRegistry {
   /** Never throws for a valid `Uint16` — unknown ids resolve to air so a corrupt save can't crash meshing. */
   get(id: BlockId): BlockDefinition;
   byName(name: string): BlockDefinition | undefined;
+  /** Every block carrying the given tag (namespaced, `#` prefix optional). */
+  byTag(tag: string): readonly BlockDefinition[];
   readonly all: readonly BlockDefinition[];
   readonly size: number;
   /** Hot-path helpers backed by flat typed arrays; safe to call per-voxel in the mesher. */

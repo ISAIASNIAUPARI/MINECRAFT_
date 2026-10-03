@@ -4,6 +4,14 @@ import type { GameMode, Difficulty } from '../core/types';
  * CONTRACT — the boundary between the React UI and the engine. The UI ONLY talks
  * to {@link GameBridge}: it reads immutable snapshots and calls commands. It never
  * imports engine/rendering/world code directly.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ADDITIONS POLICY: fields/members may be ADDED (never renamed or removed).
+ * Everything the Phase-1 UI agent added below is OPTIONAL (`?:`) so the existing
+ * engine (`Game.ts`, `GameBridgeImpl.ts`) still satisfies the interface with no
+ * change. Each block is tagged `WIRING NOTE:` — that is what the integrator must
+ * populate / handle on the engine side in `src/game/`.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
 export type GamePhase =
@@ -30,6 +38,38 @@ export interface HotbarSlotView {
   durability: number | null;
 }
 
+/** Crack overlay + progress on the block currently being mined. */
+export interface MiningProgressView {
+  /** 0..1 break progress of the targeted block. */
+  progress: number;
+  /** 0..9 discrete crack stage (drives which overlay sprite/opacity to show). */
+  stage: number;
+  /** World coords of the block being mined, for aligning the overlay. */
+  block: { x: number; y: number; z: number };
+}
+
+/** One armour slot's display data. */
+export interface ArmorSlotView {
+  itemName: string;
+  displayName: string;
+  texture: string;
+  /** 0..1 remaining, or null if not damageable. */
+  durability: number | null;
+  /** Armour points this piece contributes (half-shields). */
+  defense: number;
+}
+
+/** A single "you picked up N x item" entry for the stacked pickup toast. */
+export interface PickupToastView {
+  /** Monotonic id — the UI keys its animation off this. */
+  id: number;
+  itemName: string;
+  displayName: string;
+  texture: string;
+  /** Running total collected in this toast's lifetime. */
+  count: number;
+}
+
 export interface HudSnapshot {
   health: number;
   maxHealth: number;
@@ -42,6 +82,28 @@ export interface HudSnapshot {
   selectedSlot: number; // 0..8
   /** Short-lived pickup / status toast text. */
   toast: string | null;
+
+  // ── Phase-1 UI additions ─────────────────────────────────────────────
+  // WIRING NOTE (src/game/Game.ts → pushHud): populate these from
+  // PlayerController.state / PlayerInventory. All optional; the HUD renders
+  // sensible fallbacks (hidden armour/air rows, no crack overlay) when absent.
+
+  /** Total armour points 0..20 (half-shields). Omit/0 hides the armour row. */
+  armor?: number;
+  maxArmor?: number;
+  /** The 4 armour slots (head, chest, legs, feet order). */
+  armorSlots?: (ArmorSlotView | null)[];
+  /** Breath 0..maxAir. Only shown while under a fluid (air < maxAir). */
+  air?: number;
+  maxAir?: number;
+  /** Yellow "absorption" hearts stacked on top of health. */
+  absorption?: number;
+  /** Registry name of the just-selected item — drives the item-name popup. */
+  heldItemName?: string | null;
+  /** Non-null while the player is breaking a block. */
+  mining?: MiningProgressView | null;
+  /** Stacked pickup toasts, newest last. Replaces the single `toast` string when present. */
+  pickups?: PickupToastView[];
 }
 
 export interface DebugSnapshot {

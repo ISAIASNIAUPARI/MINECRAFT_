@@ -6,6 +6,7 @@ import type {
   BlockDefinitionInput,
   BlockFaceKey,
   BlockRenderType,
+  BlockShape,
   IBlockRegistry,
 } from './types';
 
@@ -22,10 +23,23 @@ function normalizeTextures(
   return textures;
 }
 
+/** Fallback shape when a definition omits `shape`, derived from its render type. */
+function defaultShape(renderType: BlockRenderType, solid: boolean): BlockShape {
+  if (renderType === 'cross') return 'cross';
+  if (renderType === 'liquid') return 'liquid';
+  if (renderType === 'invisible') return 'empty';
+  return solid ? 'full' : 'empty';
+}
+
+function stripHash(tag: string): string {
+  return tag.startsWith('#') ? tag.slice(1) : tag;
+}
+
 export class BlockRegistry implements IBlockRegistry {
   private readonly defs: BlockDefinition[] = [];
   private readonly byId = new Map<BlockId, BlockDefinition>();
   private readonly byNameMap = new Map<string, BlockDefinition>();
+  private readonly byTagMap = new Map<string, BlockDefinition[]>();
   private nextId = 1;
   private frozen = false;
 
@@ -67,15 +81,17 @@ export class BlockRegistry implements IBlockRegistry {
 
     const renderType: BlockRenderType = input.renderType ?? 'opaque';
     const opaque = input.opaque ?? renderType === 'opaque';
+    const solid = input.solid ?? (renderType !== 'invisible' && renderType !== 'cross');
     const def: BlockDefinition = {
       numericId: id,
       name: input.name,
       displayName: input.displayName ?? titleCase(input.name),
       textures: normalizeTextures(input.textures, input.name.split(':').pop() ?? input.name),
       renderType,
+      shape: input.shape ?? defaultShape(renderType, solid),
       tintIndex: input.tintIndex ?? null,
       opaque,
-      solid: input.solid ?? (renderType !== 'invisible' && renderType !== 'cross'),
+      solid,
       fluidBlocking: input.fluidBlocking ?? opaque,
       lightEmission: clampByte(input.lightEmission ?? 0, 15),
       lightAbsorption: clampByte(input.lightAbsorption ?? (opaque ? 15 : 0), 15),
@@ -88,12 +104,17 @@ export class BlockRegistry implements IBlockRegistry {
       sounds: { ...DEFAULT_SOUNDS, ...input.sounds },
       flammable: input.flammable ?? false,
       replaceable: input.replaceable ?? false,
-      tags: input.tags ?? [],
+      tags: input.tags ? input.tags.map(stripHash) : [],
     };
 
     this.defs.push(def);
     this.byId.set(id, def);
     this.byNameMap.set(def.name, def);
+    for (const tag of def.tags) {
+      const list = this.byTagMap.get(tag);
+      if (list) list.push(def);
+      else this.byTagMap.set(tag, [def]);
+    }
     return def;
   }
 
@@ -103,6 +124,10 @@ export class BlockRegistry implements IBlockRegistry {
 
   byName(name: string): BlockDefinition | undefined {
     return this.byNameMap.get(name);
+  }
+
+  byTag(tag: string): readonly BlockDefinition[] {
+    return this.byTagMap.get(stripHash(tag)) ?? [];
   }
 
   get all(): readonly BlockDefinition[] {

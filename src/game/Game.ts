@@ -308,7 +308,7 @@ export class Game {
       if (it) this.inventory!.add({ item: it.numericId, count });
     };
     if (mode === GameMode.Creative) {
-      for (const name of ['voxelia:stone', 'voxelia:oak_planks', 'voxelia:glass', 'voxelia:oak_log', 'voxelia:sand', 'voxelia:torch']) {
+      for (const name of ['voxelia:stone', 'voxelia:amberwood_planks', 'voxelia:glass', 'voxelia:amberwood_log', 'voxelia:sand', 'voxelia:torch']) {
         give(name, 64);
       }
     } else {

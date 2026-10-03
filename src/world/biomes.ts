@@ -24,7 +24,7 @@ export function registerCoreBiomes(reg: IBiomeRegistry): void {
     waterColor: '#3a6fd8',
     decorators: [
       { type: 'grass_patch', attemptsPerChunk: 12 },
-      { type: 'tree', attemptsPerChunk: 1, params: { kind: 'oak' } },
+      { type: 'tree', attemptsPerChunk: 1, params: { kind: 'amberwood' } },
     ],
     tags: ['overworld'],
   });
@@ -45,7 +45,7 @@ export function registerCoreBiomes(reg: IBiomeRegistry): void {
     fogColor: '#bcd4f0',
     waterColor: '#356bce',
     decorators: [
-      { type: 'tree', attemptsPerChunk: 8, params: { kind: 'oak' } },
+      { type: 'tree', attemptsPerChunk: 8, params: { kind: 'amberwood' } },
       { type: 'grass_patch', attemptsPerChunk: 8 },
     ],
     tags: ['overworld'],
@@ -85,7 +85,7 @@ export function registerCoreBiomes(reg: IBiomeRegistry): void {
     skyColor: '#a9c6e8',
     fogColor: '#d5e2ef',
     waterColor: '#3660b8',
-    decorators: [{ type: 'tree', attemptsPerChunk: 5, params: { kind: 'pine' } }],
+    decorators: [{ type: 'tree', attemptsPerChunk: 5, params: { kind: 'pinewood' } }],
     tags: ['overworld', 'cold'],
   });
 
