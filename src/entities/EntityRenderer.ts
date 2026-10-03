@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Entity } from './Entity';
-import { MODEL_UNIT, type AnimationContext, type IEntity, type ModelPart, type PartPose, type Rgb } from './types';
+import { CORPSE_SECONDS, MODEL_UNIT, type AnimationContext, type IEntity, type ModelPart, type PartPose, type Rgb } from './types';
 
 /**
  * Builds and animates creature models in the Three.js scene.
@@ -93,6 +93,7 @@ export class EntityRenderer {
           attack: ent.attackAnim ?? 0,
           hurt: ent.hurtTime > 0 ? ent.hurtTime / 0.35 : 0,
           dead: e.dead,
+          deathProgress: e.dead ? Math.min(1, ent.deathTime / CORPSE_SECONDS) : 0,
           phase: ent.phase ?? 0,
         };
 

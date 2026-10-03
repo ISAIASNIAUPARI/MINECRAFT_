@@ -22,6 +22,9 @@ import type { VoxelView } from '../physics/types';
  */
 export const MODEL_UNIT = 1 / 16;
 
+/** How long a corpse lingers before it is reaped. Death animations run over this. */
+export const CORPSE_SECONDS = 1.1;
+
 /** RGB in 0..255. */
 export type Rgb = readonly [number, number, number];
 
@@ -76,11 +79,26 @@ export interface AnimationContext {
   hurt: number;
   /** True once killed — drive a death pose from here. */
   dead: boolean;
+  /**
+   * 0 at the moment of death, reaching 1 as the corpse is reaped. A boolean
+   * cannot drive a collapse, so this is what a death animation keys off.
+   */
+  deathProgress: number;
   /** Per-entity constant in 0..1, so clones of one creature don't move in lockstep. */
   phase: number;
 }
 
-/** A mutable pose for one part. Animations write into these. */
+/**
+ * A mutable pose for one part. Animations write into these.
+ *
+ * **Rotation convention.** -Z is forward. For a part that hangs *below* its
+ * pivot (an arm, a leg), **positive `rotX` swings it forward** and negative
+ * swings it back. For a part that rises *above* its pivot (torso, head), it is
+ * the other way round: **negative `rotX` leans it forward**. Reaching for the
+ * player is therefore `+rotX` on an arm and `-rotX` on the hips. Getting this
+ * backwards makes a creature claw at the sky instead of at the player, and it
+ * looks plausible in code, so check a pose in-game before trusting it.
+ */
 export interface PartPose {
   rotX: number;
   rotY: number;

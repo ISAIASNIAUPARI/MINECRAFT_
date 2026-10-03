@@ -76,8 +76,9 @@ export const HOLLOW: CreatureDefinition = {
     // Arms hang and counter-swing, then reach out to attack.
     const reach = ctx.attack;
     const hang = -swing * 0.55 * (1 - reach);
-    pose('armL').rotX = hang - reach * 1.5;
-    pose('armR').rotX = -hang - reach * 1.5;
+    // +rotX reaches forward on a hanging limb; see PartPose for the convention.
+    pose('armL').rotX = hang + reach * 1.5;
+    pose('armR').rotX = -hang + reach * 1.5;
     pose('armL').rotZ = 0.06 + reach * 0.15;
     pose('armR').rotZ = -0.06 - reach * 0.15;
 

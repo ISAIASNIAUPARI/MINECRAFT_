@@ -232,6 +232,7 @@ describe('creature models', () => {
         attack: 0,
         hurt: 0,
         dead: false,
+        deathProgress: 0,
         phase: 0.4,
       }),
     ).not.toThrow();
@@ -314,5 +315,61 @@ describe('renderer resource sharing', () => {
 
     renderer.dispose();
     expect(renderer.stats.geometries).toBe(0);
+  });
+});
+
+describe('attack poses reach forward', () => {
+  // The rotation convention is easy to invert and the mistake renders as a
+  // creature clawing at the sky. Pin it for every creature that attacks.
+  const ctxAt = (attack: number) => ({
+    age: 2, speed: 0, distance: 0, headYaw: 0, headPitch: 0,
+    airborne: false, attack, hurt: 0, dead: false, deathProgress: 0, phase: 0.3,
+  });
+
+  it('swings every creature\'s arms forward, never backward', () => {
+    const reg = new EntityRegistry();
+    registerCoreCreatures(reg);
+
+    for (const def of reg.all) {
+      if (!def.animate || def.attackDamage === undefined) continue;
+      const poses = new Map<string, ReturnType<typeof blankPose>>();
+      const get = (name: string) => {
+        let p = poses.get(name);
+        if (!p) { p = blankPose(); poses.set(name, p); }
+        return p;
+      };
+
+      def.animate(get, ctxAt(0));
+      const restL = get('armL').rotX;
+      def.animate(get, ctxAt(1));
+      const swungL = get('armL').rotX;
+      const swungR = get('armR').rotX;
+
+      // +rotX reaches forward on a limb hanging from its pivot.
+      expect(swungL, `${def.name} armL must reach forward when attacking`).toBeGreaterThan(restL);
+      expect(swungL, `${def.name} armL must reach forward`).toBeGreaterThan(0.5);
+      expect(swungR, `${def.name} armR must reach forward`).toBeGreaterThan(0.5);
+    }
+  });
+
+  it('poses a collapse that deepens over the death', () => {
+    const reg = new EntityRegistry();
+    registerCoreCreatures(reg);
+    const wraith = reg.get('voxelia:stagwraith')!;
+    const poses = new Map<string, ReturnType<typeof blankPose>>();
+    const get = (name: string) => {
+      let p = poses.get(name);
+      if (!p) { p = blankPose(); poses.set(name, p); }
+      return p;
+    };
+
+    wraith.animate!(get, { ...ctxAt(0), dead: true, deathProgress: 0.2 });
+    const early = get('hips').rotX;
+    wraith.animate!(get, { ...ctxAt(0), dead: true, deathProgress: 1 });
+    const late = get('hips').rotX;
+
+    // Folds forward (negative on a part above its pivot), and further over time.
+    expect(late).toBeLessThan(early);
+    expect(late).toBeLessThan(-1);
   });
 });

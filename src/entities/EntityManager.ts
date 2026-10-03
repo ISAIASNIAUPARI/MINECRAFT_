@@ -4,6 +4,7 @@ import type { AABB, Vec3 } from '../core/types';
 import { aabbOverlap } from '../physics/aabb';
 import { CollisionResolver } from '../physics/collision';
 import { Entity } from './Entity';
+import { CORPSE_SECONDS } from './types';
 import type {
   EntityTickContext,
   IEntity,
@@ -17,8 +18,7 @@ const TURN_RATE = 9;
 const ACCELERATION = 36;
 /** Ground friction applied when not trying to move. */
 const FRICTION = 12;
-/** Corpses linger this long before being removed, so a death is visible. */
-const CORPSE_SECONDS = 1.1;
+
 
 export interface EntityManagerOptions {
   registry: IEntityRegistry;
@@ -187,6 +187,7 @@ export class EntityManager implements IEntityManager {
   }
 
   private tickCorpse(e: Entity, dt: number): void {
+    e.deathTime += dt;
     // An entity can die from outside the tick (a player hit, a script). Start
     // its countdown here rather than only where the tick kills it, or such a
     // corpse would never be reaped.

@@ -17,6 +17,8 @@ export class Entity implements IEntity {
   age = 0;
   distanceWalked = 0;
   dead = false;
+  /** Seconds since this entity died. Drives the death animation. */
+  deathTime = 0;
 
   /** Seconds remaining before this entity may attack again. */
   attackCooldown = 0;

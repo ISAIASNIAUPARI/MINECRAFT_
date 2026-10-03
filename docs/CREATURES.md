@@ -103,7 +103,13 @@ animate: (pose, ctx) => {
 ```
 
 `ctx` carries: `age`, `speed`, `distance`, `headYaw`, `headPitch`, `airborne`,
-`attack`, `phase`. Every pose is reset to rest before each call, so only write
+`attack`, `hurt`, `dead`, `deathProgress`, `phase`.
+
+> **Rotation signs — check a pose in-game before trusting it.** -Z is forward.
+> On a limb hanging *below* its pivot, **`+rotX` reaches forward**. On a part
+> rising *above* its pivot (torso, head), **`-rotX` leans forward**. Both
+> creatures shipped with this inverted at first and clawed at the sky; it looks
+> entirely plausible in code. `tests/entities.test.ts` now pins it. Every pose is reset to rest before each call, so only write
 what you want to change. Addressing a part that does not exist is safe.
 
 Writable per part: `rotX/Y/Z` (radians), `offsetX/Y/Z` (model units), `visible`.

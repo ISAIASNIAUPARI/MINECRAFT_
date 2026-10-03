@@ -50,6 +50,7 @@ export class Game {
   private voxels: VoxelView | null = null;
   private canSee: BrainSenses['canSee'] | null = null;
   private elapsed = 0;
+  private spawnCursor = 0;
   private player: PlayerController | null = null;
   private inventory: PlayerInventory | null = null;
   private storage: MemoryStorage | null = null;
@@ -525,14 +526,18 @@ export class Game {
    * so creature work can be eyeballed without waiting for natural spawning.
    */
   private spawnTestCreature(): void {
-    if (!this.entities || !this.player || !this.world) return;
+    if (!this.entities || !this.player || !this.world || !this.content) return;
     const s = this.player.state;
-    const dist = 6;
+    // Cycle through the roster, so F6 reaches every creature while iterating.
+    const roster = this.content.creatures.all;
+    if (roster.length === 0) return;
+    const def = roster[this.spawnCursor++ % roster.length];
+    const dist = 6 + def.width * 2;
     const x = s.position.x - Math.sin(s.yaw) * dist;
     const z = s.position.z - Math.cos(s.yaw) * dist;
     const ground = this.world.getSurfaceY(Math.floor(x), Math.floor(z));
     const y = ground >= 0 ? ground + 1 : s.position.y;
-    this.entities.spawn('voxelia:hollow', { x, y, z });
+    this.entities.spawn(def.name, { x, y, z });
   }
 
   /** Roll a dead creature's drops into the player's inventory. */
