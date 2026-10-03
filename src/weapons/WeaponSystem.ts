@@ -80,6 +80,19 @@ export class WeaponSystem implements IWeaponSystem {
   }
 
   equip(name: string): boolean {
+    // An empty name holsters: `state` goes null and `tick` does nothing, which
+    // is how the game expresses UNEQUIPPED without a second flag.
+    if (name === '') {
+      this.def = null;
+      this.ammo = 0;
+      this.reloadLeft = 0;
+      this.adsValue = 0;
+      this.recoilP = 0;
+      this.recoilY = 0;
+      this.flashLeft = 0;
+      this.fireKick = 0;
+      return true;
+    }
     const def = this.byName.get(name);
     if (!def) return false;
     this.def = def;

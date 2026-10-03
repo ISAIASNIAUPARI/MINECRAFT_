@@ -14,6 +14,9 @@ import { PlayerInventory } from '../inventory/PlayerInventory';
 import { MemoryStorage } from '../storage/MemoryStorage';
 import { EntityManager, EntityRenderer, type BrainSenses, type IEntity } from '../entities';
 import { CORE_WEAPONS, ViewmodelRenderer, WeaponSystem } from '../weapons';
+import { Spawner } from '../entities/Spawner';
+import { PlayerAvatar } from '../player/PlayerAvatar';
+import { thirdPersonCamera } from '../rendering';
 import { Excavator } from '../world/Excavator';
 import type { LeviathanBrain } from '../entities/leviathan';
 import { raycastVoxel } from '../physics/raycast';
@@ -29,8 +32,15 @@ const HUD_INTERVAL = 0.1;
 const AUTOSAVE_INTERVAL = 30;
 /** Kept small while chunk generation is synchronous; the engine agent raises this with the worker pool. */
 const SKELETON_RENDER_DISTANCE = 5;
-/** Fixed time of day until the day/night cycle lands (Phase 2). 0 = midnight. */
-const TIME_OF_DAY = 0.32;
+/**
+ * Fixed time of day until the day/night cycle lands (Phase 2). 0 = midnight.
+ *
+ * Night, not noon. Every creature in the game is nocturnal — four of the five
+ * require sky light 7 or less — and at 0.32 the outdoor light is 11, so nothing
+ * could spawn above ground at all. A horror game that is permanently midday is
+ * also simply the wrong game.
+ */
+const TIME_OF_DAY = 0.88;
 /** Matches the player controller's own clamp, so recoil cannot flip the view. */
 const MAX_CAMERA_PITCH = Math.PI / 2 - 0.01;
 
@@ -77,6 +87,12 @@ export class Game {
   /** Seconds of camera shake left, and how hard. */
   private shakeLeft = 0;
   private shakePower = 0;
+  private spawner: Spawner | null = null;
+  private avatar: PlayerAvatar | null = null;
+  /** False = first person. Toggled with F5 / V. */
+  private thirdPerson = false;
+  /** Index into CORE_WEAPONS, or -1 for empty hands. */
+  private equippedWeapon = -1;
   private player: PlayerController | null = null;
   private inventory: PlayerInventory | null = null;
   private storage: MemoryStorage | null = null;
@@ -210,9 +226,25 @@ export class Game {
         seed,
       });
       this.viewmodel = new ViewmodelRenderer();
-      this.weapons.equip(CORE_WEAPONS[0].name);
-      this.viewmodel.setWeapon(CORE_WEAPONS[0]);
-      this.renderer.overlay = (gl) => this.viewmodel?.render(gl);
+      this.avatar = new PlayerAvatar(this.renderer.threeScene);
+      this.renderer.overlay = (gl) => {
+        // The viewmodel is first-person only; in third person the avatar holds
+        // the real weapon instead.
+        if (!this.thirdPerson) this.viewmodel?.render(gl);
+      };
+      // Starts holstered. Pressing 1 draws it.
+      this.setEquippedWeapon(-1);
+
+      this.spawner = new Spawner({
+        registry: this.content.creatures,
+        entities: this.entities,
+        voxels,
+        seed,
+        lightAt: (x, y, z) => this.skyLightAt(x, y, z),
+        surfaceAt: (x, z) => world.getSurfaceY(x, z),
+        // SpawnRule names biomes, and `id` is numeric — `name` is the namespaced one.
+        biomeAt: (x, z) => this.generator?.biomeAt(x, z).name ?? '',
+      });
 
       this.input.attach(this.canvas);
       this.input.load();
@@ -256,7 +288,13 @@ export class Game {
       this.player.state.selectedSlot = this.inventory.selectedSlot;
     }
     for (let i = 1; i <= 9; i++) {
-      if (this.input.consumePressed(`hotbar_${i}` as never) && this.inventory) {
+      if (!this.input.consumePressed(`hotbar_${i}` as never)) continue;
+      if (i === 1) {
+        // Slot 1 is the weapon. Pressing it again holsters, so the player can
+        // get back to placing blocks without a second key.
+        this.setEquippedWeapon(this.equippedWeapon === 0 ? -1 : 0);
+      }
+      if (this.inventory) {
         this.inventory.selectedSlot = i - 1;
         this.player.state.selectedSlot = i - 1;
       }
@@ -301,6 +339,7 @@ export class Game {
     }
 
     this.tickLeviathans();
+    this.spawner?.tick(dt, this.player.state.position);
 
     if (this.entities && this.voxels && this.canSee) {
       const p = this.player.state;
@@ -355,7 +394,26 @@ export class Game {
       cam.yaw += w.recoilYaw;
       cam.fovDegrees *= lerp(1, w.definition.adsFovScale, w.ads);
     }
-    this.renderer.setCamera(cam);
+    // Third person moves only the camera's POSITION. Yaw and pitch stay the
+    // player's, so the shot direction is identical in both modes — the brief's
+    // requirement that changing the camera must not change where you shoot.
+    if (this.thirdPerson && this.voxels) {
+      this.renderer.setCamera(thirdPersonCamera(cam, this.voxels));
+    } else {
+      this.renderer.setCamera(cam);
+    }
+
+    if (this.avatar) {
+      const s = this.player.state;
+      this.avatar.update(
+        s.position,
+        s.yaw,
+        s.pitch,
+        Math.hypot(s.velocity.x, s.velocity.z),
+        this.walkedDistance,
+        this.weapons?.fireKick ?? 0,
+      );
+    }
     this.renderer.setTimeOfDay(TIME_OF_DAY);
     const hit = this.player.target.hit;
     this.renderer.setBlockHighlight(hit ? hit.block : null);
@@ -410,6 +468,10 @@ export class Game {
     }
     if (this.input.consumePressed('toggle_debug')) this.toggleDebug();
     if (this.input.consumePressed('debug_spawn')) this.spawnTestCreature();
+    if (this.input.consumePressed('toggle_perspective')) {
+      this.thirdPerson = !this.thirdPerson;
+      this.avatar?.setVisible(this.thirdPerson);
+    }
     if (this.input.consumePressed('open_inventory') && !this.paused) this.toggleInventory();
   }
 
@@ -613,6 +675,11 @@ export class Game {
     this.input.detach();
     this.viewmodel?.dispose();
     this.viewmodel = null;
+    this.avatar?.dispose();
+    this.avatar = null;
+    this.spawner = null;
+    this.thirdPerson = false;
+    this.equippedWeapon = -1;
     this.weapons = null;
     this.walkedDistance = 0;
     this.entityRenderer?.dispose();
@@ -690,6 +757,22 @@ export class Game {
         this.shake(0.5, 0.035, e.position);
       }
     }
+  }
+
+  /**
+   * Draw or holster a weapon. `index` is into CORE_WEAPONS, or -1 for empty.
+   *
+   * The single place that decides what is held: the weapon system, the
+   * first-person viewmodel and the third-person avatar are all set from here,
+   * so they cannot disagree and nothing is ever built twice.
+   */
+  private setEquippedWeapon(index: number): void {
+    this.equippedWeapon = index;
+    const def = index >= 0 ? CORE_WEAPONS[index] : null;
+    if (def) this.weapons?.equip(def.name);
+    else this.weapons?.equip('');
+    this.viewmodel?.setWeapon(def);
+    this.avatar?.setWeapon(def);
   }
 
   /** Shake the camera, falling off with distance from the source. */

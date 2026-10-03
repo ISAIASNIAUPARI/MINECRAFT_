@@ -2,6 +2,7 @@ export * from './types';
 export { Entity } from './Entity';
 export { EntityRegistry } from './EntityRegistry';
 export { EntityManager, type EntityManagerOptions } from './EntityManager';
+export { Spawner, type SpawnerOptions } from './Spawner';
 export { EntityRenderer } from './EntityRenderer';
 export {
   createStalkerBrain,

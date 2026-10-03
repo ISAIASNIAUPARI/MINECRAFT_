@@ -14,7 +14,7 @@ export const DEFAULT_BINDINGS: KeyBindings = {
   pick_block: ['Mouse1'],
   drop_item: ['KeyQ'],
   open_inventory: ['KeyE'],
-  toggle_perspective: ['F5'],
+  toggle_perspective: ['F5', 'KeyV'],
   toggle_debug: ['F3'],
   debug_spawn: ['KeyG'],
   reload: ['KeyR'],
