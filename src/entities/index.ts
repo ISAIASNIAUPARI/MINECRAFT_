@@ -15,4 +15,4 @@ export {
   steerTowards,
   type StalkerConfig,
 } from './ai';
-export { CORE_CREATURES, registerCoreCreatures, HOLLOW, STAGWRAITH } from './creatures';
+export { CORE_CREATURES, registerCoreCreatures, HOLLOW, STAGWRAITH, LURKER } from './creatures';

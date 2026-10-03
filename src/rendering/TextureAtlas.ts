@@ -38,8 +38,16 @@ const PALETTE: Record<string, [number, number, number]> = {
   furnace_top: [96, 96, 100],
   torch: [230, 190, 90],
 
-  // Creature skins. Painted by the same speckled tile routine as blocks, which
-  // is what stops a box model reading as a flat-shaded crate.
+};
+
+/**
+ * Creature skins, kept apart from block textures so a creature never has to
+ * guess at a naming prefix. Painted by the same speckled tile routine as
+ * blocks, with a heavier grain: flat colour is what makes a box model read as
+ * a stack of crates.
+ */
+const CREATURE_PALETTE: Record<string, [number, number, number]> = {
+  // Stagwraith
   wraith_bone: [224, 212, 188],
   wraith_bone_shade: [186, 172, 146],
   wraith_flesh: [206, 184, 150],
@@ -50,10 +58,20 @@ const PALETTE: Record<string, [number, number, number]> = {
   wraith_gore_deep: [66, 24, 22],
   wraith_limb: [58, 44, 38],
   wraith_limb_dark: [34, 26, 23],
+
+  // Lurker (cave spider)
+  spider_chitin: [42, 38, 38],
+  spider_chitin_dark: [24, 21, 21],
+  spider_abdomen: [33, 29, 30],
+  spider_ash: [96, 90, 88],
+  spider_rust: [78, 30, 26],
+  spider_fang: [176, 168, 154],
 };
 
-/** Texture keys that belong to creatures rather than blocks. */
-export const CREATURE_TEXTURE_KEYS = Object.keys(PALETTE).filter((k) => k.startsWith('wraith_'));
+/** Every creature skin key, for registering them with the atlas. */
+export const CREATURE_TEXTURE_KEYS = Object.keys(CREATURE_PALETTE);
+
+const ALL_TEXTURES: Record<string, [number, number, number]> = { ...PALETTE, ...CREATURE_PALETTE };
 
 function hashKey(key: string): number {
   let h = 0;
@@ -70,13 +88,13 @@ function hashKey(key: string): number {
  * paints as wood instead of a random hashed colour.
  */
 function paletteFor(key: string): [number, number, number] {
-  const exact = PALETTE[key];
+  const exact = ALL_TEXTURES[key];
   if (exact) return exact;
   let best: [number, number, number] | null = null;
   let bestLen = 0;
-  for (const name of Object.keys(PALETTE)) {
+  for (const name of Object.keys(ALL_TEXTURES)) {
     if (name.length > bestLen && (key === name || key.endsWith(`_${name}`))) {
-      best = PALETTE[name];
+      best = ALL_TEXTURES[name];
       bestLen = name.length;
     }
   }
@@ -94,7 +112,7 @@ function paintTile(ctx: CanvasRenderingContext2D, x0: number, y0: number, key: s
     for (let px = 0; px < TILE; px++) {
       const n = (hashInts(seed, px, py) & 0xff) / 255 - 0.5;
       // Organic surfaces get a stronger grain than mineral ones.
-      const k = 1 + n * (key.startsWith('wraith_') ? 0.42 : 0.22);
+      const k = 1 + n * (key in CREATURE_PALETTE ? 0.42 : 0.22);
       ctx.fillStyle = `rgb(${clamp8(r * k)},${clamp8(g * k)},${clamp8(b * k)})`;
       ctx.fillRect(x0 + px, y0 + py, 1, 1);
     }

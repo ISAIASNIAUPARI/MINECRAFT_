@@ -326,29 +326,77 @@ describe('attack poses reach forward', () => {
     airborne: false, attack, hurt: 0, dead: false, deathProgress: 0, phase: 0.3,
   });
 
-  it('swings every creature\'s arms forward, never backward', () => {
+  /** Every part name a model declares, at any depth. */
+  const partNames = (parts: readonly { name: string; children?: readonly never[] }[]): Set<string> => {
+    const out = new Set<string>();
+    const walk = (list: readonly { name: string; children?: readonly never[] }[]): void => {
+      for (const p of list) {
+        out.add(p.name);
+        if (p.children) walk(p.children);
+      }
+    };
+    walk(parts);
+    return out;
+  };
+
+  const poseMap = () => {
+    const m = new Map<string, ReturnType<typeof blankPose>>();
+    return {
+      m,
+      get: (name: string) => {
+        let p = m.get(name);
+        if (!p) { p = blankPose(); m.set(name, p); }
+        return p;
+      },
+    };
+  };
+
+  it('makes every attack visibly change the pose', () => {
     const reg = new EntityRegistry();
     registerCoreCreatures(reg);
 
     for (const def of reg.all) {
       if (!def.animate || def.attackDamage === undefined) continue;
-      const poses = new Map<string, ReturnType<typeof blankPose>>();
-      const get = (name: string) => {
-        let p = poses.get(name);
-        if (!p) { p = blankPose(); poses.set(name, p); }
-        return p;
-      };
+      const rest = poseMap();
+      const swung = poseMap();
+      def.animate(rest.get, ctxAt(0));
+      def.animate(swung.get, ctxAt(1));
 
-      def.animate(get, ctxAt(0));
-      const restL = get('armL').rotX;
-      def.animate(get, ctxAt(1));
-      const swungL = get('armL').rotX;
-      const swungR = get('armR').rotX;
+      let moved = 0;
+      for (const [name, after] of swung.m) {
+        const before = rest.m.get(name);
+        if (!before) continue;
+        if (
+          Math.abs(after.rotX - before.rotX) > 0.1 ||
+          Math.abs(after.rotY - before.rotY) > 0.1 ||
+          Math.abs(after.rotZ - before.rotZ) > 0.1 ||
+          Math.abs(after.offsetY - before.offsetY) > 0.5
+        ) moved++;
+      }
+      expect(moved, `${def.name} barely moves when attacking`).toBeGreaterThan(0);
+    }
+  });
+
+  it('swings humanoid arms forward, never backward', () => {
+    const reg = new EntityRegistry();
+    registerCoreCreatures(reg);
+
+    for (const def of reg.all) {
+      if (!def.animate || def.attackDamage === undefined) continue;
+      // Only creatures that actually have arms. A spider strikes with legs, and
+      // a leg rising from its pivot uses the opposite sign convention.
+      const names = partNames(def.model as never);
+      if (!names.has('armL') || !names.has('armR')) continue;
+
+      const p = poseMap();
+      def.animate(p.get, ctxAt(0));
+      const restL = p.get('armL').rotX;
+      def.animate(p.get, ctxAt(1));
 
       // +rotX reaches forward on a limb hanging from its pivot.
-      expect(swungL, `${def.name} armL must reach forward when attacking`).toBeGreaterThan(restL);
-      expect(swungL, `${def.name} armL must reach forward`).toBeGreaterThan(0.5);
-      expect(swungR, `${def.name} armR must reach forward`).toBeGreaterThan(0.5);
+      expect(p.get('armL').rotX, `${def.name} armL must reach forward`).toBeGreaterThan(restL);
+      expect(p.get('armL').rotX, `${def.name} armL must reach forward`).toBeGreaterThan(0.5);
+      expect(p.get('armR').rotX, `${def.name} armR must reach forward`).toBeGreaterThan(0.5);
     }
   });
 

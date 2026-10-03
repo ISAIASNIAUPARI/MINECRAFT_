@@ -16,7 +16,7 @@ export const DEFAULT_BINDINGS: KeyBindings = {
   open_inventory: ['KeyE'],
   toggle_perspective: ['F5'],
   toggle_debug: ['F3'],
-  debug_spawn: ['F6'],
+  debug_spawn: ['KeyG'],
   chat_or_command: ['KeyT', 'Slash'],
   pause: ['Escape'],
   hotbar_1: ['Digit1'],

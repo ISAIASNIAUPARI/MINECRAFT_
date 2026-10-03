@@ -83,7 +83,31 @@ means one material, across every instance and every creature.
 
 ---
 
-## 6. Hitboxes
+## 6. Moving through the world
+
+Two numbers decide whether a creature can actually get anywhere, and both are
+easy to set wrong because nothing complains:
+
+- **`stepHeight` under 1.0 means it cannot climb a single block.** It then falls
+  back on hopping, and a wide creature hops in place against ordinary terrain
+  forever. Anything with long legs or a body wider than about a block wants
+  `stepHeight` above 1.0. The Lurker shipped at 0.8 and was stuck on flat
+  forest floor; at 1.15 it crossed 18 blocks and reached the player.
+- **`width` is a real constraint.** A 2.6-wide creature needs a 3-block gap. If
+  it is meant to live in tunnels, it will plug them — that is the design — but
+  check it can still reach the player somewhere.
+
+The tell for a wedged creature is `onGround: false` with a constant positive
+`velocity.y` and an unchanging position: it is re-jumping every time it lands.
+
+> **Measuring behaviour in a hidden browser:** `requestAnimationFrame` is
+> throttled or stopped entirely when the page is not drawing, so the simulation
+> crawls or freezes and a creature looks broken when it is fine. Drive the loop
+> directly instead — `__voxelia.loop.advance(1/20)` in a JS loop steps the fixed
+> timestep deterministically — and measure elapsed *simulated* time
+> (`__voxelia.elapsed`), never wall-clock seconds.
+
+## 7. Hitboxes
 
 One box per creature: `width` × `height`, centred on its feet. That is the whole
 collision model and it is deliberate.
@@ -93,7 +117,7 @@ decoration. Gameplay and performance beat geometric fidelity.
 
 ---
 
-## 7. Animation
+## 8. Animation
 
 Animations are rotations, offsets and visibility on named parts — no skinning,
 no deformation, no blend trees.
@@ -122,7 +146,7 @@ decides anything.
 
 ---
 
-## 8. Behaviour
+## 9. Behaviour
 
 Compose from `ai.ts`. Do not reimplement steering, sight or obstacle handling.
 
@@ -142,7 +166,7 @@ world and change anything — that asymmetry is deliberate and must stay.
 
 ---
 
-## 9. Performance
+## 10. Performance
 
 The engine owns the cost model. A creature file does not optimise; it stays
 within the shapes above and the cost follows.
@@ -173,7 +197,7 @@ expensive test behind a cheap one.
 
 ---
 
-## 10. Spawn and death
+## 11. Spawn and death
 
 Death stops the brain, runs the death pose, lingers briefly so the kill reads,
 then reaps and rolls drops. All of that is the manager's job; a creature declares
@@ -184,7 +208,7 @@ despawning repeatedly does not churn memory.
 
 ---
 
-## 11. Not built yet
+## 12. Not built yet
 
 Stated plainly so nobody designs against something that does not exist:
 
@@ -201,7 +225,7 @@ you does not work until it exists.
 
 ---
 
-## 12. Before adding any creature
+## 13. Before adding any creature
 
 1. Read [`CREATURES.md`](./CREATURES.md) and `hollow.ts`.
 2. Reuse the existing entity, animation, material, collision and AI systems.
