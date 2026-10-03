@@ -461,8 +461,9 @@ export const STAGWRAITH: CreatureDefinition = {
     // +rotX reaches forward on a hanging limb; see PartPose for the convention.
     pose('armL').rotX = lerp(swing, 1.85, a);
     pose('armR').rotX = lerp(-swing, 1.85, a);
-    pose('armL').rotZ = lerp(0.1, 0.32, a);
-    pose('armR').rotZ = lerp(-0.1, -0.32, a);
+    // -rotZ splays the left arm outward; positive would tuck it into the ribs.
+    pose('armL').rotZ = lerp(-0.1, -0.32, a);
+    pose('armR').rotZ = lerp(0.1, 0.32, a);
     pose('forearmL').rotX = lerp(-0.2, 0.34, a);
     pose('forearmR').rotX = lerp(-0.2, 0.34, a);
     pose('hips').rotX = -a * 0.22; // leans into the swing

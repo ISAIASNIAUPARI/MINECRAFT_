@@ -96,6 +96,12 @@ export interface StalkerConfig {
   freezeWhenWatched?: boolean;
   /** Only hunts when sky light at its feet is at or below this. 15 = always. */
   huntsInLightUpTo?: number;
+  /**
+   * On first spotting the player, hold still and stare for this many seconds
+   * before advancing. The pause is the dread; a creature that charges the
+   * instant it sees you is a threat, one that looks at you first is a scene.
+   */
+  stareSeconds?: number;
 }
 
 export const DEFAULT_STALKER: StalkerConfig = {
@@ -107,6 +113,7 @@ export const DEFAULT_STALKER: StalkerConfig = {
   memorySeconds: 6,
   freezeWhenWatched: false,
   huntsInLightUpTo: 15,
+  stareSeconds: 0,
 };
 
 /**
@@ -119,8 +126,11 @@ export function createStalkerBrain(rng: Rng, config: Partial<StalkerConfig> = {}
   const cfg = { ...DEFAULT_STALKER, ...config };
   const intent = idleIntent();
 
-  let state: 'idle' | 'wander' | 'hunt' | 'search' | 'attack' | 'frozen' = 'idle';
+  let state: 'idle' | 'wander' | 'hunt' | 'search' | 'attack' | 'frozen' | 'stare' = 'idle';
   let stateTime = 0;
+  /** Counts down the stare on each fresh acquisition. */
+  let stareLeft = 0;
+  let sawPlayerLastTick = false;
   let wanderTarget: Vec3 | null = null;
   let lastSeen: Vec3 | null = null;
   let memory = 0;
@@ -176,6 +186,13 @@ export function createStalkerBrain(rng: Rng, config: Partial<StalkerConfig> = {}
       }
 
       // --- state selection ----------------------------------------------
+      // A fresh acquisition starts the stare; staying visible does not restart it.
+      if (visible && !sawPlayerLastTick && (cfg.stareSeconds ?? 0) > 0) {
+        stareLeft = cfg.stareSeconds ?? 0;
+      }
+      sawPlayerLastTick = visible;
+      if (stareLeft > 0) stareLeft = Math.max(0, stareLeft - dt);
+
       if (visible && player) {
         const gap = distanceXZ(self.position, player);
         const reach =
@@ -185,6 +202,9 @@ export function createStalkerBrain(rng: Rng, config: Partial<StalkerConfig> = {}
           state = 'frozen';
         } else if (gap <= reach) {
           state = 'attack';
+        } else if (stareLeft > 0) {
+          // Seen you. Not moving yet.
+          state = 'stare';
         } else {
           state = 'hunt';
         }
@@ -206,6 +226,11 @@ export function createStalkerBrain(rng: Rng, config: Partial<StalkerConfig> = {}
       switch (state) {
         case 'frozen':
           // Hold absolutely still, but keep facing the player. Nothing is worse.
+          intent.lookAt = player;
+          break;
+
+        case 'stare':
+          // Rooted, facing you, while the countdown runs.
           intent.lookAt = player;
           break;
 

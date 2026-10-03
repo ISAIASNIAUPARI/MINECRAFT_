@@ -113,6 +113,11 @@ animate: (pose, ctx) => {
 `ctx` carries: `age`, `speed`, `distance`, `headYaw`, `headPitch`, `airborne`,
 `attack`, `hurt`, `dead`, `deathProgress`, `phase`.
 
+> **Splay signs too.** On a hanging limb, `+rotZ` swings its far end toward
+> `+X`. The left arm therefore splays *outward* on **negative** `rotZ`;
+> positive tucks it into the ribs and the limb stops reading as a separate
+> mass. Both humanoids shipped with this inverted.
+>
 > **Rotation signs — check a pose in-game before trusting it.** -Z is forward.
 > On a limb hanging *below* its pivot, **`+rotX` reaches forward**. On a part
 > rising *above* its pivot (torso, head), **`-rotX` leans forward**. Both

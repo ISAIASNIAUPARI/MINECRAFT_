@@ -384,21 +384,33 @@ describe('attack poses reach forward', () => {
     for (const def of reg.all) {
       if (!def.animate || def.attackDamage === undefined) continue;
       // Only creatures that actually have arms. A spider strikes with legs, and
-      // a leg rising from its pivot uses the opposite sign convention.
+      // a limb rising from its pivot uses the opposite sign convention.
       const names = partNames(def.model as never);
       if (!names.has('armL') || !names.has('armR')) continue;
 
-      const p = poseMap();
-      def.animate(p.get, ctxAt(0));
-      const restL = p.get('armL').rotX;
-      def.animate(p.get, ctxAt(1));
+      // A strike may cycle off `age`, so sample a whole swing rather than one
+      // instant — a single sample makes this test depend on where the sine lands.
+      let bestReach = -Infinity;
+      let worstReach = Infinity;
+      for (let age = 0; age < 4; age += 0.1) {
+        const p = poseMap();
+        def.animate(p.get, { ...ctxAt(1), age });
+        for (const side of ['armL', 'armR']) {
+          const v = p.get(side).rotX;
+          if (v > bestReach) bestReach = v;
+          if (v < worstReach) worstReach = v;
+        }
+      }
 
-      // +rotX reaches forward on a limb hanging from its pivot.
-      expect(p.get('armL').rotX, `${def.name} armL must reach forward`).toBeGreaterThan(restL);
-      expect(p.get('armL').rotX, `${def.name} armL must reach forward`).toBeGreaterThan(0.5);
-      expect(p.get('armR').rotX, `${def.name} armR must reach forward`).toBeGreaterThan(0.5);
+      // At least one arm reaches well forward at some point in the swing. The
+      // Devourer strikes with a single arm, so requiring both is wrong.
+      expect(bestReach, `${def.name} never reaches forward when attacking`).toBeGreaterThan(0.5);
+      // And nothing claws at the sky: that was the original bug, a limb thrown
+      // up and behind instead of out at the player.
+      expect(worstReach, `${def.name} swings an arm backward when attacking`).toBeGreaterThan(-0.8);
     }
   });
+
 
   it('poses a collapse that deepens over the death', () => {
     const reg = new EntityRegistry();

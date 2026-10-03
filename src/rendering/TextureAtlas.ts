@@ -66,6 +66,13 @@ const CREATURE_PALETTE: Record<string, [number, number, number]> = {
   spider_ash: [96, 90, 88],
   spider_rust: [78, 30, 26],
   spider_fang: [176, 168, 154],
+
+  // Devourer
+  devourer_obsidian: [22, 19, 30],
+  devourer_obsidian_lit: [40, 33, 54],
+  devourer_char: [30, 27, 36],
+  devourer_void: [48, 24, 72],
+  devourer_corrupt: [92, 40, 140],
 };
 
 /** Every creature skin key, for registering them with the atlas. */

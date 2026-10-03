@@ -216,7 +216,9 @@ Stated plainly so nobody designs against something that does not exist:
 |---|---|
 | Audio | **Does not exist.** No code, no files. Creature sounds cannot be declared yet. |
 | Particles | **Does not exist.** |
-| Natural spawning | `SpawnRule` is declared and read by nothing. Use `spawn()` or F6. |
+| Natural spawning | `SpawnRule` is declared and read by nothing. Use `spawn()` or the **G** key. |
+| Pathfinding | **Does not exist.** Brains steer straight at the target and hop one-block ledges. A creature that falls into a cave or meets a wall it cannot steer around will stand there wanting to move. Test behaviour on flat ground to tell a creature bug from this. |
+| Ranged attacks | **Does not exist.** No projectiles, so a creature cannot throw or fire anything. |
 | Voxel light propagation | **Does not exist.** `lightAt` answers "open to the sky?" — a torch creates no safe bubble. |
 
 If a creature's design depends on one of these, say so and we build the system
