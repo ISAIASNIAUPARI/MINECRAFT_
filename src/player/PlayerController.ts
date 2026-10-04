@@ -5,6 +5,7 @@ import {
   PLAYER_REACH,
   PLAYER_WIDTH,
   TERMINAL_VELOCITY,
+  WORLD_BORDER,
 } from '../core/constants';
 import { clamp } from '../core/math';
 import { GameMode, type Vec3 } from '../core/types';
@@ -107,6 +108,23 @@ export class PlayerController implements IPlayerController {
     this.state.pitch = clamp(this.state.pitch - dy * MOUSE_SENSITIVITY, -MAX_PITCH, MAX_PITCH);
   }
 
+  /**
+   * Hold the player inside the world border.
+   *
+   * Clamping the position rather than blocking the input means they slide along
+   * the edge instead of sticking to it, and it cannot be escaped by any
+   * movement mode — walking, sprinting or flying.
+   */
+  private clampToBorder(): void {
+    if (!Number.isFinite(WORLD_BORDER)) return;
+    const limit = WORLD_BORDER - PLAYER_WIDTH;
+    const s = this.state;
+    if (s.position.x > limit) { s.position.x = limit; s.velocity.x = Math.min(0, s.velocity.x); }
+    if (s.position.x < -limit) { s.position.x = -limit; s.velocity.x = Math.max(0, s.velocity.x); }
+    if (s.position.z > limit) { s.position.z = limit; s.velocity.z = Math.min(0, s.velocity.z); }
+    if (s.position.z < -limit) { s.position.z = -limit; s.velocity.z = Math.max(0, s.velocity.z); }
+  }
+
   tick(dt: number): void {
     this.breakCooldown = Math.max(0, this.breakCooldown - dt);
     this.placeCooldown = Math.max(0, this.placeCooldown - dt);
@@ -178,6 +196,9 @@ export class PlayerController implements IPlayerController {
     });
     s.position = move.position;
     s.velocity = move.velocity;
+    // After the move, not before: clamping first lets this tick's movement
+    // carry the player past the edge, and it is only pulled back on the next.
+    this.clampToBorder();
 
     if (!flying) {
       if (move.onGround && !s.onGround && s.stats.fallDistance > 3) {

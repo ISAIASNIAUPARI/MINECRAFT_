@@ -1,4 +1,4 @@
-import { CHUNK_SIZE, SEA_LEVEL, WORLD_MAX_Y } from '../core/constants';
+import { CHUNK_SIZE, SEA_LEVEL, WORLD_BORDER, WORLD_MAX_Y } from '../core/constants';
 import { worldToChunk } from '../core/math';
 import { createLogger } from '../core/Logger';
 import { GameMode, Difficulty } from '../core/types';
@@ -91,7 +91,7 @@ export class Game {
   private avatar: PlayerAvatar | null = null;
   /** False = first person. Toggled with F5 / V. */
   private thirdPerson = false;
-  /** Index into CORE_WEAPONS, or -1 for empty hands. */
+  /** Index into CORE_WEAPONS, or -1 for empty hands. Read by the HUD. */
   private equippedWeapon = -1;
   private player: PlayerController | null = null;
   private inventory: PlayerInventory | null = null;
@@ -244,6 +244,12 @@ export class Game {
         surfaceAt: (x, z) => world.getSurfaceY(x, z),
         // SpawnRule names biomes, and `id` is numeric — `name` is the namespaced one.
         biomeAt: (x, z) => this.generator?.biomeAt(x, z).name ?? '',
+        // Tuned for the 50x50 arena: enough of them to meet quickly and to be
+        // visible together on the minimap, few enough that they do not become
+        // a crowd in a space this size.
+        maxAlive: 10,
+        interval: 1.5,
+        despawnDistance: 110,
       });
 
       this.input.attach(this.canvas);
@@ -289,11 +295,11 @@ export class Game {
     }
     for (let i = 1; i <= 9; i++) {
       if (!this.input.consumePressed(`hotbar_${i}` as never)) continue;
-      if (i === 1) {
-        // Slot 1 is the weapon. Pressing it again holsters, so the player can
-        // get back to placing blocks without a second key.
-        this.setEquippedWeapon(this.equippedWeapon === 0 ? -1 : 0);
-      }
+      // Slot 1 IS the weapon and slots 2-9 are blocks, so selecting a slot
+      // decides what is in your hands. Pressing 1 always draws — making it
+      // toggle meant a second press holstered it again, which reads as the key
+      // simply not working.
+      this.setEquippedWeapon(i === 1 ? 0 : -1);
       if (this.inventory) {
         this.inventory.selectedSlot = i - 1;
         this.player.state.selectedSlot = i - 1;
@@ -598,9 +604,25 @@ export class Game {
       hotbar,
       selectedSlot: this.inventory.selectedSlot,
       toast: null,
+      map: {
+        playerX: s.position.x,
+        playerZ: s.position.z,
+        yaw: s.yaw,
+        border: Number.isFinite(WORLD_BORDER) ? WORLD_BORDER : null,
+        blips: (this.entities?.all ?? [])
+          .filter((e) => !e.dead)
+          .map((e) => ({
+            x: e.position.x,
+            z: e.position.z,
+            // Anything noticeably larger than the player reads as a landmark.
+            big: e.definition.width >= 2 || e.definition.height >= 4,
+            hostile: (e.definition.attackDamage ?? 0) > 0,
+          })),
+      },
       weapon: this.weapons?.state
         ? {
             name: this.weapons.state.definition.displayName,
+            slot: this.equippedWeapon + 1,
             ammo: this.weapons.state.ammo,
             magazine: this.weapons.state.definition.magazineSize,
             reloading: this.weapons.state.reloading,

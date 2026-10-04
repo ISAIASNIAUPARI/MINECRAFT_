@@ -1,4 +1,4 @@
-import { GRAVITY, TERMINAL_VELOCITY } from '../core/constants';
+import { GRAVITY, TERMINAL_VELOCITY, WORLD_BORDER } from '../core/constants';
 import { createRng, hashInts, type Rng } from '../core/rng';
 import type { AABB, Vec3 } from '../core/types';
 import { aabbOverlap } from '../physics/aabb';
@@ -165,6 +165,7 @@ export class EntityManager implements IEntityManager {
         e.position.y += e.velocity.y * dt;
         e.position.z += e.velocity.z * dt;
         e.onGround = false;
+        this.clampToBorder(e);
         e.distanceWalked += Math.hypot(e.position.x - before.x, e.position.z - before.z);
         this.resolveMelee(e, def, intent, senses);
         if (e.health <= 0) e.kill();
@@ -184,6 +185,7 @@ export class EntityManager implements IEntityManager {
       e.velocity.y = result.velocity.y;
       e.velocity.z = result.velocity.z;
       e.onGround = result.onGround;
+      this.clampToBorder(e);
       e.distanceWalked += Math.hypot(e.position.x - before.x, e.position.z - before.z);
 
       this.resolveMelee(e, def, intent, senses);
@@ -193,6 +195,24 @@ export class EntityManager implements IEntityManager {
     }
 
     this.reap();
+  }
+
+  /**
+   * Keep a creature inside the world border.
+   *
+   * Applies to everything, including fliers that pass through terrain: without
+   * it a leviathan cruising on a long heading simply leaves the arena and sits
+   * outside it where the player can never reach it. Reversing the velocity
+   * rather than zeroing it turns the edge into a wall it bounces off, so it
+   * keeps patrolling instead of grinding against the boundary.
+   */
+  private clampToBorder(e: Entity): void {
+    if (!Number.isFinite(WORLD_BORDER)) return;
+    const limit = WORLD_BORDER - e.definition.width * 0.5;
+    if (e.position.x > limit) { e.position.x = limit; e.velocity.x = -Math.abs(e.velocity.x); }
+    if (e.position.x < -limit) { e.position.x = -limit; e.velocity.x = Math.abs(e.velocity.x); }
+    if (e.position.z > limit) { e.position.z = limit; e.velocity.z = -Math.abs(e.velocity.z); }
+    if (e.position.z < -limit) { e.position.z = -limit; e.velocity.z = Math.abs(e.velocity.z); }
   }
 
   /** Land a contact hit on the player when one is in reach and off cooldown. */

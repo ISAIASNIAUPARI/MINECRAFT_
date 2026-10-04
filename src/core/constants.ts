@@ -29,6 +29,16 @@ export const WORLD_COLUMN_CHUNKS = WORLD_HEIGHT / CHUNK_SIZE;
 export const WORLD_MIN_CHUNK_Y = WORLD_MIN_Y >> CHUNK_SIZE_BITS;
 export const WORLD_MAX_CHUNK_Y = (WORLD_MAX_Y >> CHUNK_SIZE_BITS) - 1;
 
+/**
+ * Half-extent of the playable world in blocks, measured from the origin.
+ *
+ * 25 gives a 50x50 arena: the world is FINITE and does not keep generating as
+ * the player walks. Chunks outside it are never created, the player is held
+ * inside it, and creatures spawn and are kept within it. Set to `Infinity` for
+ * an endless world.
+ */
+export const WORLD_BORDER = 25;
+
 /** Default ocean surface height. */
 export const SEA_LEVEL = 62;
 

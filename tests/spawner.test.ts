@@ -7,6 +7,7 @@ import {
   type BrainSenses,
 } from '../src/entities';
 import type { VoxelView } from '../src/physics/types';
+import { WORLD_BORDER } from '../src/core/constants';
 
 /** Flat ground at y<=64, open sky above. */
 const flat: VoxelView = {
@@ -84,10 +85,19 @@ describe('spawner', () => {
     for (const e of entities.all) {
       const rule = e.definition.spawn!;
       const d = Math.hypot(e.position.x - PLAYER.x, e.position.z - PLAYER.z);
-      // Each creature's own minimum is respected, with a little slack for the
-      // group scatter.
+
+      // Distances are scaled to the world that actually exists: a creature
+      // asking to appear 34 blocks away cannot in a 50-block arena, so the
+      // spawner shrinks both bounds together rather than refusing to spawn it.
+      // Reproduce that here so the test checks the real rule, not the raw one.
+      let near = rule.minPlayerDistance ?? 16;
+      const far = Math.max(near + 8, rule.maxPlayerDistance ?? 64);
+      const reach = WORLD_BORDER * 1.4;
+      if (far > reach) near = Math.max(3, near * (reach / far));
+
+      // Minus the group scatter, which can place a straggler slightly nearer.
       expect(d, `${e.definition.name} spawned ${d.toFixed(1)} away`).toBeGreaterThan(
-        (rule.minPlayerDistance ?? 16) - 5,
+        Math.max(2, near - 5),
       );
     }
   });

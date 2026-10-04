@@ -86,7 +86,22 @@ export interface HudSnapshot {
    * ADDITIVE (optional). The held weapon's ammunition. Absent when nothing is
    * held, so a UI that ignores it still renders correctly.
    */
-  weapon?: { name: string; ammo: number; magazine: number; reloading: boolean } | null;
+  weapon?: { name: string; slot: number; ammo: number; magazine: number; reloading: boolean } | null;
+  /**
+   * ADDITIVE (optional). Everything the minimap needs: where the player is and
+   * what is around them. Positions are world coordinates; the UI does the
+   * projection, so the game never has to know the map's size on screen.
+   */
+  map?: {
+    playerX: number;
+    playerZ: number;
+    /** Facing in radians, for the heading wedge. */
+    yaw: number;
+    /** Half-extent of the world in blocks, or null when it is endless. */
+    border: number | null;
+    /** One entry per living creature. `big` marks the ones worth seeing early. */
+    blips: { x: number; z: number; big: boolean; hostile: boolean }[];
+  } | null;
 
   // ── Phase-1 UI additions ─────────────────────────────────────────────
   // WIRING NOTE (src/game/Game.ts → pushHud): populate these from

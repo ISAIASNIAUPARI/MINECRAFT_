@@ -354,3 +354,57 @@ progress {
   font-size: 15px;
   color: #ffb648;
 }
+
+/* --- minimap ------------------------------------------------------------ */
+.minimap {
+  position: absolute;
+  bottom: 18px;
+  left: 18px;
+  border-radius: 6px;
+  background: rgba(10, 12, 18, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  overflow: hidden;
+}
+.minimap-border {
+  position: absolute;
+  inset: 5px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+}
+.minimap-blip {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: 50%;
+  background: #9fb4cc;
+}
+.minimap-blip.hostile {
+  background: #ff5a44;
+  box-shadow: 0 0 5px rgba(255, 90, 68, 0.9);
+}
+.minimap-blip.big {
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  background: #ff8a2b;
+  box-shadow: 0 0 8px rgba(255, 138, 43, 0.95);
+}
+.minimap-player {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 10px solid #ffffff;
+}
+.minimap-count {
+  position: absolute;
+  right: 5px;
+  bottom: 3px;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}

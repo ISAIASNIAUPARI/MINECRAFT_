@@ -1,3 +1,4 @@
+import { WORLD_BORDER } from '../core/constants';
 import { createLogger } from '../core/Logger';
 import { createRng, type Rng } from '../core/rng';
 import type { Vec3 } from '../core/types';
@@ -133,16 +134,38 @@ export class Spawner {
    */
   private findSpot(def: CreatureDefinition, player: Vec3): Vec3 | null {
     const rule = def.spawn!;
-    const near = rule.minPlayerDistance ?? 16;
-    const far = Math.max(near + 8, rule.maxPlayerDistance ?? 64);
+    let near = rule.minPlayerDistance ?? 16;
+    let far = Math.max(near + 8, rule.maxPlayerDistance ?? 64);
+
+    // A creature that wants to appear 34 blocks away cannot do so in a 50-block
+    // arena. Scale both distances to whatever world actually exists, keeping
+    // their ratio, so a small world simply has closer encounters instead of no
+    // encounters at all.
+    if (Number.isFinite(WORLD_BORDER)) {
+      const reach = WORLD_BORDER * 1.4; // corner-to-corner from anywhere inside
+      if (far > reach) {
+        const shrink = reach / far;
+        far = reach;
+        near = Math.max(3, near * shrink);
+      }
+    }
 
     for (let attempt = 0; attempt < DEFAULTS.attemptsPerPass; attempt++) {
       // A point in the annulus around the player: never on top of them, never
       // beyond where it would be despawned again.
       const angle = this.rng.float(0, Math.PI * 2);
       const dist = this.rng.float(near, far);
-      const x = Math.floor(player.x + Math.cos(angle) * dist);
-      const z = Math.floor(player.z + Math.sin(angle) * dist);
+      let x = Math.floor(player.x + Math.cos(angle) * dist);
+      let z = Math.floor(player.z + Math.sin(angle) * dist);
+      if (Number.isFinite(WORLD_BORDER)) {
+        const edge = WORLD_BORDER - Math.ceil(def.width);
+        if (Math.abs(x) > edge || Math.abs(z) > edge) {
+          // Reflect back inside rather than clamping, which would pile every
+          // rejected candidate onto the same four edge lines.
+          x = clamp(x, -edge, edge);
+          z = clamp(z, -edge, edge);
+        }
+      }
 
       const surface = this.opts.surfaceAt(x, z);
       if (surface < 0) continue; // unloaded or empty column
@@ -198,6 +221,10 @@ export class Spawner {
       if (distance(e.position, player) > limit) this.opts.entities.despawn(e.id);
     }
   }
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return v < lo ? lo : v > hi ? hi : v;
 }
 
 function distance(a: Vec3, b: Vec3): number {

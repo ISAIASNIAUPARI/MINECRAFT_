@@ -1,5 +1,6 @@
 import { GameMode } from '../../core/types';
 import type { GameSnapshot } from '../../game/types';
+import { Minimap } from './Minimap';
 
 export function Hud({ snapshot }: { snapshot: GameSnapshot }): JSX.Element | null {
   const hud = snapshot.hud;
@@ -37,6 +38,8 @@ export function Hud({ snapshot }: { snapshot: GameSnapshot }): JSX.Element | nul
           </div>
         ))}
       </div>
+
+      <Minimap hud={hud} />
 
       {weapon && (
         <div className="hud-ammo">

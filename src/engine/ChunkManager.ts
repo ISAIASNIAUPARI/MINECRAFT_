@@ -1,3 +1,4 @@
+import { CHUNK_SIZE, WORLD_BORDER } from '../core/constants';
 import { createLogger } from '../core/Logger';
 import { chunkKey } from '../core/math';
 import type { ChunkPos } from '../core/types';
@@ -91,10 +92,30 @@ export class ChunkManager implements IChunkManager {
     }
   }
 
+  /**
+   * Does any part of this chunk lie inside the world border?
+   *
+   * The border is the reason the world is finite: a chunk entirely outside it
+   * is never generated, so walking toward the edge stops producing terrain
+   * rather than producing it forever.
+   */
+  private withinBorder(cx: number, cz: number): boolean {
+    if (!Number.isFinite(WORLD_BORDER)) return true;
+    const minX = cx * CHUNK_SIZE;
+    const minZ = cz * CHUNK_SIZE;
+    return (
+      minX + CHUNK_SIZE > -WORLD_BORDER &&
+      minX <= WORLD_BORDER &&
+      minZ + CHUNK_SIZE > -WORLD_BORDER &&
+      minZ <= WORLD_BORDER
+    );
+  }
+
   ensureImmediate(center: ChunkPos, radius: number): void {
     for (let dx = -radius; dx <= radius; dx++) {
       for (let dz = -radius; dz <= radius; dz++) {
         if (dx * dx + dz * dz > radius * radius) continue;
+        if (!this.withinBorder(center.cx + dx, center.cz + dz)) continue;
         for (let cy = this.minCY; cy <= this.maxCY; cy++) {
           this.ensure(center.cx + dx, cy, center.cz + dz);
         }
@@ -119,6 +140,7 @@ export class ChunkManager implements IChunkManager {
     for (let dx = -r; dx <= r; dx++) {
       for (let dz = -r; dz <= r; dz++) {
         if (dx * dx + dz * dz > r * r) continue;
+        if (!this.withinBorder(center.cx + dx, center.cz + dz)) continue;
         for (let cy = this.minCY; cy <= this.maxCY; cy++) {
           const pos = { cx: center.cx + dx, cy, cz: center.cz + dz };
           if (!this.map.has(chunkKey(pos.cx, pos.cy, pos.cz))) queue.push(pos);
